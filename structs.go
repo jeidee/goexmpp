@@ -8,9 +8,11 @@ package xmpp
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"xml"
 )
 
@@ -31,6 +33,7 @@ type JID struct {
 	Resource *string
 }
 var _ fmt.Stringer = &JID{}
+var _ flag.Value = &JID{}
 
 // XMPP's <stream:stream> XML element
 type Stream struct {
@@ -68,6 +71,26 @@ func (jid *JID) String() string {
 		result = result + "/" + *jid.Resource
 	}
 	return result
+}
+
+func (jid *JID) Set(val string) bool {
+	r := regexp.MustCompile("^(([^@/]+)@)?([^@/]+)(/([^@/]+))?$")
+	parts := r.FindStringSubmatch(val)
+	if parts == nil {
+		return false
+	}
+	if parts[2] == "" {
+		jid.Node = nil
+	} else {
+		jid.Node = &parts[2]
+	}
+	jid.Domain = parts[3]
+	if parts[5] == "" {
+		jid.Resource = nil
+	} else {
+		jid.Resource = &parts[5]
+	}
+	return true
 }
 
 func (s *Stream) MarshalXML() ([]byte, os.Error) {
