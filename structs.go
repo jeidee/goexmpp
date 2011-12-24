@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements a simple XMPP client according to RFCs 3920
-// and 3921, plus the various XEPs at http://xmpp.org/protocols/.
 package xmpp
+
+// This file contains data structures.
 
 import (
 	"bytes"
@@ -18,6 +18,8 @@ const (
 	// Version of RFC 3920 that we implement.
 	Version = "1.0"
 	nsStreams = "urn:ietf:params:xml:ns:xmpp-streams"
+	nsStream = "http://etherx.jabber.org/streams"
+	nsTLS = "urn:ietf:params:xml:ns:xmpp-tls"
 )
 
 // JID represents an entity that can communicate with other
