@@ -44,7 +44,7 @@ var _ xml.Marshaler = &Stream{}
 
 type StreamError struct {
 	cond definedCondition
-	text errText
+	text *errText
 }
 var _ xml.Marshaler = &StreamError{}
 
@@ -54,7 +54,6 @@ type definedCondition struct {
 }
 
 type errText struct {
-	XMLName xml.Name
 	Lang string
 	text string `xml:"chardata"`
 }
@@ -88,7 +87,9 @@ func (s *StreamError) MarshalXML() ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<stream:error>")
 	xml.Marshal(buf, s.cond)
-	xml.Marshal(buf, s.text)
+	if s.text != nil {
+		xml.Marshal(buf, s.text)
+	}
 	buf.WriteString("</stream:error>")
 	return buf.Bytes(), nil
 }
