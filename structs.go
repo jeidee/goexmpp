@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 	"xml"
 )
 
@@ -62,6 +63,10 @@ type errText struct {
 }
 var _ xml.Marshaler = &errText{}
 
+type Unrecognized struct {
+	XMLName xml.Name
+}
+
 func (jid *JID) String() string {
 	result := jid.Domain
 	if jid.Node != nil {
@@ -104,6 +109,26 @@ func (s *Stream) MarshalXML() ([]byte, os.Error) {
 	buf.WriteString(">")
 	// We never write </stream:stream>
 	return buf.Bytes(), nil
+}
+
+func parseStream(se xml.StartElement) (*Stream, os.Error) {
+	s := &Stream{}
+	se = se.Copy()
+	for _, attr := range se.Attr {
+		switch strings.ToLower(attr.Name.Local) {
+		case "to":
+			s.to = attr.Value
+		case "from":
+			s.from = attr.Value
+		case "id":
+			s.id = attr.Value
+		case "lang":
+			s.lang = attr.Value
+		case "version":
+			s.version = attr.Value
+		}
+	}
+	return s, nil
 }
 
 func (s *StreamError) MarshalXML() ([]byte, os.Error) {

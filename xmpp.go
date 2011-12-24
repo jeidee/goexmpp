@@ -9,8 +9,10 @@ package xmpp
 import (
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
+	"xml"
 )
 
 const (
@@ -20,8 +22,10 @@ const (
 
 // The client in a client-server XMPP connection.
 type Client struct {
-	//In <-chan *Stanza
-	//Out chan<- *Stanza
+	In <-chan interface{}
+	in chan interface{}
+	Out chan<- interface{}
+	out chan interface{}
 	tcp *net.TCPConn
 }
 var _ io.Closer = &Client{}
@@ -58,9 +62,63 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 
 	cl := Client{}
 	cl.tcp = c
+	cl.in = make(chan interface{})
+	cl.In = cl.in
+	// TODO Send readXml a reader that we can close when we
+	// negotiate TLS.
+	go readXml(cl.tcp, cl.in)
+	// TODO go writeXml(&cl)
+
 	return &cl, nil
 }
 
 func (c *Client) Close() os.Error {
 	return c.tcp.Close()
+}
+
+func readXml(r io.Reader, ch chan<- interface{}) {
+	p := xml.NewParser(r)
+	for {
+		// Sniff the next token on the stream.
+		t, err := p.Token()
+		if t == nil {
+			if err != os.EOF {
+				log.Printf("read: %v", err)
+			}
+			break
+		}
+		var se xml.StartElement
+		var ok bool
+		if se, ok = t.(xml.StartElement) ; !ok {
+			continue
+		}
+
+		// Allocate the appropriate structure for this token.
+		var obj interface{}
+		switch se.Name.Space + se.Name.Local {
+		case "stream stream":
+			st, err := parseStream(se)
+			if err != nil {
+				log.Printf("unmarshal stream: %v",
+					err)
+				break
+			}
+			ch <- st
+			continue
+		case nsStreams + " stream:error":
+			obj = &StreamError{}
+		default:
+			obj = &Unrecognized{}
+		}
+
+		// Read the complete XML stanza.
+		err = p.Unmarshal(obj, &se)
+		if err != nil {
+			log.Printf("unmarshal: %v", err)
+			break
+		}
+
+		// Put it on the channel.
+		ch <- obj
+	}
 }
