@@ -8,6 +8,7 @@ package xmpp
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -23,6 +24,7 @@ type Client struct {
 	//Out chan<- *Stanza
 	tcp *net.TCPConn
 }
+var _ io.Closer = &Client{}
 
 // Connect to the appropriate server and authenticate as the given JID
 // with the given password.
@@ -57,4 +59,8 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	cl := Client{}
 	cl.tcp = c
 	return &cl, nil
+}
+
+func (c *Client) Close() os.Error {
+	return c.tcp.Close()
 }
