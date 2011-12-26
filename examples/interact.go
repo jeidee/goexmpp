@@ -7,6 +7,7 @@ package main
 import (
 	"cjyar/xmpp"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	)
@@ -28,4 +29,19 @@ func main() {
 		log.Fatalf("NewClient(%v): %v", jid, err)
 	}
 	defer c.Close()
+
+	go func(ch <-chan interface{}) {
+		for obj := range ch {
+			fmt.Printf("s: %v\n", obj)
+		}
+		fmt.Println("done reading")
+	}(c.In)
+
+	ch := make(chan interface{})
+	go xmpp.ReadXml(os.Stdin, ch, false)
+	for x := range ch {
+		fmt.Printf("c: %v", x)
+		c.Out <- x
+	}
+	fmt.Println("done sending")
 }

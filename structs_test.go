@@ -50,28 +50,32 @@ func assertMarshal(t *testing.T, expected string, marshal interface{}) {
 }
 
 func TestStreamMarshal(t *testing.T) {
-	s := &Stream{to: "bob"}
-	exp := `<stream:stream to="bob">`
+	s := &Stream{To: "bob"}
+	exp := `<stream:stream xmlns="jabber:client"` +
+		` xmlns:stream="` + nsStream + `" to="bob">`
 	assertMarshal(t, exp, s)
 
-	s = &Stream{to: "bob", from: "alice", id: "#3", version: "5.3"}
-	exp = `<stream:stream to="bob" from="alice" id="#3" version="5.3">`
+	s = &Stream{To: "bob", From: "alice", Id: "#3", Version: "5.3"}
+	exp = `<stream:stream xmlns="jabber:client"` +
+		` xmlns:stream="` + nsStream + `" to="bob" from="alice"` +
+		` id="#3" version="5.3">`
 	assertMarshal(t, exp, s)
 
-	s = &Stream{lang: "en_US"}
-	exp = `<stream:stream xml:lang="en_US">`
+	s = &Stream{Lang: "en_US"}
+	exp = `<stream:stream xmlns="jabber:client"` +
+		` xmlns:stream="` + nsStream + `" xml:lang="en_US">`
 	assertMarshal(t, exp, s)
 }
 
 func TestStreamErrorMarshal(t *testing.T) {
 	name := xml.Name{Space: nsStreams, Local: "ack"}
-	e := &StreamError{cond: definedCondition{name}}
+	e := &StreamError{Any: definedCondition{name}}
 	exp := `<stream:error><ack xmlns="` + nsStreams +
 		`"></ack></stream:error>`;
 	assertMarshal(t, exp, e)
 
-	txt := errText{Lang: "pt", text: "things happen"}
-	e = &StreamError{cond: definedCondition{name}, text: &txt}
+	txt := errText{Lang: "pt", Text: "things happen"}
+	e = &StreamError{Any: definedCondition{name}, Text: &txt}
 	exp = `<stream:error><ack xmlns="` + nsStreams +
 		`"></ack><text xmlns="` + nsStreams +
 		`" xml:lang="pt">things happen</text></stream:error>`

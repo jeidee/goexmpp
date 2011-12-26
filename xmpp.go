@@ -7,6 +7,7 @@
 package xmpp
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -18,6 +19,7 @@ import (
 const (
 	serverSrv = "xmpp-server"
 	clientSrv = "xmpp-client"
+	debug = true
 )
 
 // The client in a client-server XMPP connection.
@@ -60,23 +62,39 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 		return nil, err
 	}
 
-	cl := Client{}
+	cl := new(Client)
 	cl.tcp = c
 	cl.in = make(chan interface{})
 	cl.In = cl.in
+	cl.out = make(chan interface{})
+	cl.Out = cl.out
 	// TODO Send readXml a reader that we can close when we
 	// negotiate TLS.
-	go readXml(cl.tcp, cl.in)
-	// TODO go writeXml(&cl)
+	go readXml(cl.tcp, cl.in, debug)
+	go writeXml(cl.tcp, cl.out, debug)
 
-	return &cl, nil
+	return cl, nil
 }
 
 func (c *Client) Close() os.Error {
+	close(c.in)
+	close(c.out)
 	return c.tcp.Close()
 }
 
-func readXml(r io.Reader, ch chan<- interface{}) {
+// TODO Delete; for use only by interact.go:
+func ReadXml(r io.ReadCloser, ch chan<- interface{}, dbg bool) {
+	readXml(r, ch, dbg)
+}
+
+func readXml(r io.Reader, ch chan<- interface{}, dbg bool) {
+	defer close(ch)
+	if dbg {
+		pr, pw := io.Pipe()
+		go tee(r, pw, "S: ")
+		r = pr
+	}
+
 	p := xml.NewParser(r)
 	for {
 		// Sniff the next token on the stream.
@@ -95,8 +113,8 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 
 		// Allocate the appropriate structure for this token.
 		var obj interface{}
-		switch se.Name.Space + se.Name.Local {
-		case "stream stream":
+		switch se.Name.Space + " " + se.Name.Local {
+		case nsStream + " stream":
 			st, err := parseStream(se)
 			if err != nil {
 				log.Printf("unmarshal stream: %v",
@@ -105,7 +123,7 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 			}
 			ch <- st
 			continue
-		case nsStreams + " stream:error":
+		case "stream error":
 			obj = &StreamError{}
 		default:
 			obj = &Unrecognized{}
@@ -120,5 +138,53 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 
 		// Put it on the channel.
 		ch <- obj
+	}
+}
+
+func writeXml(w io.Writer, ch <-chan interface{}, dbg bool) {
+	if dbg {
+		pr, pw := io.Pipe()
+		go tee(pr, w, "C: ")
+		w = pw
+	}
+
+	for obj := range ch {
+		err := xml.Marshal(w, obj)
+		if err != nil {
+			log.Printf("write: %v", err)
+			break
+		}
+	}
+}
+
+func tee(r io.Reader, w io.Writer, prefix string) {
+	defer func(xs ...interface{}) {
+		for _, x := range xs {
+			if c, ok := x.(io.Closer) ; ok {
+				c.Close()
+			}
+		}
+	}(r, w)
+
+	buf := bytes.NewBuffer(nil)
+	for {
+		var c [1]byte
+		n, _ := r.Read(c[:])
+		if n == 0 {
+			break
+		}
+		n, _ = w.Write(c[:])
+		if n == 0 {
+			break
+		}
+		buf.Write(c[:])
+		if c[0] == '\n' {
+			fmt.Printf("%s%s", prefix, buf.String())
+			buf.Reset()
+		}
+	}
+	leftover := buf.String()
+	if leftover != "" {
+		fmt.Printf("%s%s\n", prefix, leftover)
 	}
 }
