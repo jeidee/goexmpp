@@ -57,6 +57,7 @@ var _ xml.Marshaler = &StreamError{}
 type definedCondition struct {
 	// Must always be in namespace nsStreams
 	XMLName xml.Name
+	Chardata string `xml:"chardata"`
 }
 
 type errText struct {
