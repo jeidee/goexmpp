@@ -37,11 +37,14 @@ func main() {
 		fmt.Println("done reading")
 	}(c.In)
 
-	ch := make(chan interface{})
-	go xmpp.ReadXml(os.Stdin, ch, false)
-	for x := range ch {
-		fmt.Printf("c: %v", x)
-		c.Out <- x
+	p := make([]byte, 1024)
+	for {
+		nr, _ := os.Stdin.Read(p)
+		if nr == 0 {
+			break
+		}
+		s := string(p)
+		c.TextOut <- &s
 	}
 	fmt.Println("done sending")
 }
