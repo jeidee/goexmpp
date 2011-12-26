@@ -66,9 +66,23 @@ type errText struct {
 }
 var _ xml.Marshaler = &errText{}
 
+type Features struct {
+	Starttls starttls
+	Mechanisms mechs
+}
+
+type starttls struct {
+	required *string
+}
+
+type mechs struct {
+	Mechanism []string
+}
+
 type Unrecognized struct {
 	XMLName xml.Name
 }
+var _ fmt.Stringer = &Unrecognized{}
 
 func (jid *JID) String() string {
 	result := jid.Domain
@@ -170,4 +184,9 @@ func writeField(w io.Writer, field, value string) {
 		xml.Escape(w, []byte(value))
 		io.WriteString(w, `"`)
 	}
+}
+
+func (u *Unrecognized) String() string {
+	return fmt.Sprintf("unrecognized{%s %s}", u.XMLName.Space,
+		u.XMLName.Local)
 }

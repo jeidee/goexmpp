@@ -73,6 +73,10 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	go readXml(cl.tcp, cl.in, debug)
 	go writeXml(cl.tcp, cl.out, debug)
 
+	// Initial handshake.
+	hsOut := &Stream{To: jid.Domain, Version: Version}
+	cl.Out <- hsOut
+
 	return cl, nil
 }
 
@@ -125,8 +129,12 @@ func readXml(r io.Reader, ch chan<- interface{}, dbg bool) {
 			continue
 		case "stream error":
 			obj = &StreamError{}
+		case nsStream + " features":
+			obj = &Features{}
 		default:
 			obj = &Unrecognized{}
+			log.Printf("Ignoring unrecognized: %s %s\n",
+				se.Name.Space, se.Name.Local)
 		}
 
 		// Read the complete XML stanza.
