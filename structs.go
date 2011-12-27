@@ -17,14 +17,6 @@ import (
 	"xml"
 )
 
-const (
-	// Version of RFC 3920 that we implement.
-	Version = "1.0"
-	nsStreams = "urn:ietf:params:xml:ns:xmpp-streams"
-	nsStream = "http://etherx.jabber.org/streams"
-	nsTLS = "urn:ietf:params:xml:ns:xmpp-tls"
-)
-
 // JID represents an entity that can communicate with other
 // entities. It looks like node@domain/resource. Node and resource are
 // sometimes optional.
@@ -67,11 +59,12 @@ type errText struct {
 var _ xml.Marshaler = &errText{}
 
 type Features struct {
-	Starttls starttls
+	Starttls *starttls
 	Mechanisms mechs
 }
 
 type starttls struct {
+	XMLName xml.Name
 	required *string
 }
 
