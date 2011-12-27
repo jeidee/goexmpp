@@ -72,6 +72,13 @@ type mechs struct {
 	Mechanism []string
 }
 
+type auth struct {
+	XMLName xml.Name
+	Chardata string `xml:"chardata"`
+	Mechanism string `xml:"attr"`
+	Any *Unrecognized
+}
+
 type Unrecognized struct {
 	XMLName xml.Name
 }

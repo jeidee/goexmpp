@@ -23,6 +23,7 @@ const (
 	nsStreams = "urn:ietf:params:xml:ns:xmpp-streams"
 	nsStream = "http://etherx.jabber.org/streams"
 	nsTLS = "urn:ietf:params:xml:ns:xmpp-tls"
+	nsSASL = "urn:ietf:params:xml:ns:xmpp-sasl"
 
 	// DNS SRV names
 	serverSrv = "xmpp-server"
@@ -34,8 +35,10 @@ const (
 // The client in a client-server XMPP connection.
 type Client struct {
 	Jid JID
+	password string
 	socket net.Conn
 	socketSync sync.WaitGroup
+	saslExpected string
 	In <-chan interface{}
 	Out chan<- interface{}
 	xmlOut chan<- interface{}
@@ -74,6 +77,7 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	}
 
 	cl := new(Client)
+	cl.password = password
 	cl.Jid = *jid
 	cl.socket = tcp
 
@@ -136,7 +140,7 @@ func startTextWriter(w io.Writer) chan<- *string {
 
 func (cl *Client) startStreamReader(xmlIn <-chan interface{}, srvOut chan<- interface{}) <-chan interface{} {
 	ch := make(chan interface{})
-	go cl.readStream(xmlIn, srvOut, ch)
+	go cl.readStream(xmlIn, ch)
 	return ch
 }
 
