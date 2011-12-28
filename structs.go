@@ -43,17 +43,10 @@ var _ fmt.Stringer = &stream{}
 // <stream:error>
 // BUG(cjyar) Can this be consolidated with Error? Hide it if not.
 type StreamError struct {
-	Any definedCondition
+	Any Generic
 	Text *errText
 }
 var _ xml.Marshaler = &StreamError{}
-
-// BUG(cjyar) Replace this with Generic.
-type definedCondition struct {
-	// Must always be in namespace nsStreams
-	XMLName xml.Name
-	Chardata string `xml:"chardata"`
-}
 
 type errText struct {
 	Lang string `xml:"attr"`

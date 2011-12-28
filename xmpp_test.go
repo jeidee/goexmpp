@@ -78,15 +78,15 @@ func testWrite(obj interface{}) string {
 }
 
 func TestWriteError(t *testing.T) {
-	se := &StreamError{Any: definedCondition{XMLName:
-			xml.Name{Local: "blah"}}}
+	se := &StreamError{Any: Generic{XMLName: xml.Name{Local:
+				"blah"}}}
 	str := testWrite(se)
 	exp := `<stream:error><blah></blah></stream:error>`
 	assertEquals(t, exp, str)
 
-	se = &StreamError{Any: definedCondition{XMLName:
-			xml.Name{Space: nsStreams, Local: "foo"}},
-		Text: &errText{Lang: "ru", Text: "Пошёл ты"}}
+	se = &StreamError{Any: Generic{XMLName: xml.Name{Space:
+				nsStreams, Local: "foo"}}, Text:
+		&errText{Lang: "ru", Text: "Пошёл ты"}}
 	str = testWrite(se)
 	exp = `<stream:error><foo xmlns="` + nsStreams +
 		`"></foo><text xmlns="` + nsStreams +
