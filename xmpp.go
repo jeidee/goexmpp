@@ -63,9 +63,6 @@ type Client struct {
 	// channel.
 	Out chan<- Stanza
 	xmlOut chan<- interface{}
-	// BUG(cjyar) Remove this. Make a Stanza parser method
-	// available for use by interact.go and similar applications.
-	TextOut chan<- *string
 }
 var _ io.Closer = &Client{}
 
@@ -114,7 +111,6 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	// Start the reader and writers that convert to and from XML.
 	xmlIn := startXmlReader(tlsr)
 	cl.xmlOut = startXmlWriter(tlsw)
-	textOut := startTextWriter(tlsw)
 
 	// Start the XMPP stream handler which filters stream-level
 	// events and responds to them.
@@ -127,13 +123,12 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 
 	cl.In = clIn
 	cl.Out = clOut
-	cl.TextOut = textOut
 
 	return cl, nil
 }
 
 func (c *Client) Close() os.Error {
-	tryClose(c.In, c.Out, c.TextOut)
+	tryClose(c.In, c.Out)
 	return nil
 }
 
@@ -154,12 +149,6 @@ func startXmlReader(r io.Reader) <-chan interface{} {
 func startXmlWriter(w io.Writer) chan<- interface{} {
 	ch := make(chan interface{})
 	go writeXml(w, ch)
-	return ch
-}
-
-func startTextWriter(w io.Writer) chan<- *string {
-	ch := make(chan *string)
-	go writeText(w, ch)
 	return ch
 }
 

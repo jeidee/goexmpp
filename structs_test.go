@@ -89,3 +89,50 @@ func TestIqMarshal(t *testing.T) {
 		`"></bind></iq>`
 	assertMarshal(t, exp, iq)
 }
+
+func TestParseStanza(t *testing.T) {
+	str := `<iq to="alice" from="bob" id="1" type="A"` +
+		` xml:lang="en"><foo>text</foo></iq>`
+	st, err := ParseStanza(str)
+	if err != nil {
+		t.Fatalf("iq: %v", err)
+	}
+	assertEquals(t, "iq", st.XName())
+	assertEquals(t, "alice", st.XTo())
+	assertEquals(t, "bob", st.XFrom())
+	assertEquals(t, "1", st.XId())
+	assertEquals(t, "A", st.XType())
+	assertEquals(t, "en", st.XLang())
+	if st.XError() != nil {
+		t.Errorf("iq: error %v", st.XError())
+	}
+	if st.XChild() == nil {
+		t.Errorf("iq: nil child")
+	}
+	assertEquals(t, "foo", st.XChild().XMLName.Local)
+	assertEquals(t, "text", st.XChild().Chardata)
+
+	str = `<message to="alice" from="bob"/>`
+	st, err = ParseStanza(str)
+	if err != nil {
+		t.Fatalf("message: %v", err)
+	}
+	assertEquals(t, "message", st.XName())
+	assertEquals(t, "alice", st.XTo())
+	assertEquals(t, "bob", st.XFrom())
+	assertEquals(t, "", st.XId())
+	assertEquals(t, "", st.XLang())
+	if st.XError() != nil {
+		t.Errorf("message: error %v", st.XError())
+	}
+	if st.XChild() != nil {
+		t.Errorf("message: child %v", st.XChild())
+	}
+
+	str = `<presence/>`
+	st, err = ParseStanza(str)
+	if err != nil {
+		t.Fatalf("presence: %v", err)
+	}
+	assertEquals(t, "presence", st.XName())
+}

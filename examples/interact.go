@@ -44,7 +44,13 @@ func main() {
 			break
 		}
 		s := string(p)
-		c.TextOut <- &s
+		stan, err := xmpp.ParseStanza(s)
+		if err == nil {
+			c.Out <- stan
+		} else {
+			fmt.Printf("Parse error: %v\n", err)
+			break
+		}
 	}
 	fmt.Println("done sending")
 }

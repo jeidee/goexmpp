@@ -170,36 +170,18 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	}
 }
 
-// BUG(cjyar) This should go away. We shouldn't allow writing of
-// unstructured data.
-func writeText(w io.Writer, ch <-chan *string) {
-	if debug {
-		pr, pw := io.Pipe()
-		go tee(pr, w, "C: ")
-		w = pw
-	}
-	defer tryClose(w, ch)
-
-	for str := range ch {
-		_, err := w.Write([]byte(*str))
-		if err != nil {
-			log.Printf("writeStr: %v", err)
-			break
-		}
-	}
-}
-
 func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 	defer tryClose(srvIn, cliOut)
 
 	handlers := make(map[string] func(Stanza) bool)
-	// BUG(cjyar) This for loop will never terminate, even when
-	// the channels are closed.
 	for {
 		select {
 		case h := <- cl.handlers:
 			handlers[h.id] = h.f
 		case x := <- srvIn:
+			if x == nil {
+				break
+			}
 			send := false
 			switch obj := x.(type) {
 			case *stream:

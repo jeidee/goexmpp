@@ -409,3 +409,34 @@ func (iq *Iq) XChild() *Generic {
 func (iq *Iq) MarshalXML() ([]byte, os.Error) {
 	return marshalXML(iq)
 }
+
+// Parse a string into a struct implementing Stanza -- this will be
+// either an Iq, a Message, or a Presence.
+func ParseStanza(str string) (Stanza, os.Error) {
+	r := strings.NewReader(str)
+	p := xml.NewParser(r)
+	tok, err := p.Token()
+	if err != nil {
+		return nil, err
+	}
+	se, ok := tok.(xml.StartElement)
+	if !ok {
+		return nil, os.NewError("Not a start element")
+	}
+	var stan Stanza
+	switch se.Name.Local {
+	case "iq":
+		stan = &Iq{}
+	case "message":
+		stan = &Message{}
+	case "presence":
+		stan = &Presence{}
+	default:
+		return nil, os.NewError("Not iq, message, or presence")
+	}
+	err = p.Unmarshal(stan, &se)
+	if err != nil {
+		return nil, err
+	}
+	return stan, nil
+}
