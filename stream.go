@@ -34,7 +34,7 @@ type stanzaHandler struct {
 	f func(Stanza) bool
 }
 
-// TODO Review all these *Client receiver methods. They should
+// BUG(cjyar) Review all these *Client receiver methods. They should
 // probably either all be receivers, or none.
 
 func (cl *Client) readTransport(w io.Writer) {
@@ -144,9 +144,9 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 			break
 		}
 
-		// TODO If it's a Stanza, use reflection to search for
-		// any Unrecognized elements and fill in their
-		// attributes.
+		// BUG(cjyar) If it's a Stanza, use reflection to
+		// search for any Unrecognized elements and fill in
+		// their attributes.
 
 		// Put it on the channel.
 		ch <- obj
@@ -170,7 +170,7 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	}
 }
 
-// TODO This should go away. We shouldn't allow writing of
+// BUG(cjyar) This should go away. We shouldn't allow writing of
 // unstructured data.
 func writeText(w io.Writer, ch <-chan *string) {
 	if debug {
@@ -193,8 +193,8 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}
 	defer tryClose(srvIn, cliOut)
 
 	handlers := make(map[string] func(Stanza) bool)
-	// TODO This for loop will never terminate, even when the
-	// channels are closed.
+	// BUG(cjyar) This for loop will never terminate, even when
+	// the channels are closed.
 	for {
 		select {
 		case h := <- cl.handlers:
@@ -226,7 +226,7 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}
 	}
 }
 
-// TODO Disable this loop until resource binding is
+// BUG(cjyar) Disable this loop until resource binding is
 // complete. Otherwise the app might inject something weird into our
 // negotiation stream.
 func writeStream(srvOut chan<- interface{}, cliIn <-chan interface{}) {
@@ -307,7 +307,6 @@ func (cl *Client) waitForSocket() {
 	cl.socketSync.Done()
 }
 
-// TODO
 // BUG(cjyar) Doesn't implement TLS/SASL EXTERNAL.
 func (cl *Client) chooseSasl(fe *Features) {
 	var digestMd5 bool

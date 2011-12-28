@@ -6,8 +6,8 @@
 // and 3921, plus the various XEPs at http://xmpp.org/protocols/.
 package xmpp
 
-// TODO Figure out why the library doesn't exit when the server closes
-// its stream to us.
+// BUG(cjyar) Figure out why the library doesn't exit when the server
+// closes its stream to us.
 
 import (
 	"bytes"
@@ -33,7 +33,7 @@ const (
 	serverSrv = "xmpp-server"
 	clientSrv = "xmpp-client"
 
-	// TODO Make this a parameter to NewClient, not a
+	// BUG(cjyar) Make this a parameter to NewClient, not a
 	// constant. We should have both a log level and a
 	// syslog.Writer, so the app can control how much time we
 	// spend generating log messages, as well as where they go.
@@ -58,14 +58,14 @@ type Client struct {
 	// Incoming XMPP stanzas from the server will be published on
 	// this channel. Information which is only used by this
 	// library to set up the XMPP stream will not appear here.
-	// TODO Make these channels of type Stanza.
+	// BUG(cjyar) Make these channels of type Stanza.
 	In <-chan interface{}
 	// Outgoing XMPP stanzas to the server should be sent to this
 	// channel.
 	Out chan<- interface{}
 	xmlOut chan<- interface{}
-	// TODO Remove this. Make a Stanza parser method available for
-	// use by interact.go and similar applications.
+	// BUG(cjyar) Remove this. Make a Stanza parser method
+	// available for use by interact.go and similar applications.
 	TextOut chan<- *string
 }
 var _ io.Closer = &Client{}

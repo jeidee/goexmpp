@@ -21,7 +21,7 @@ import (
 // entities. It looks like node@domain/resource. Node and resource are
 // sometimes optional.
 type JID struct {
-	// TODO Make this not a pointer.
+	// BUG(cjyar) Make this not a pointer.
 	Node *string
 	Domain string
 	Resource string
@@ -30,7 +30,7 @@ var _ fmt.Stringer = &JID{}
 var _ flag.Value = &JID{}
 
 // XMPP's <stream:stream> XML element
-// TODO Hide this.
+// BUG(cjyar) Hide this.
 type Stream struct {
 	To string `xml:"attr"`
 	From string `xml:"attr"`
@@ -42,14 +42,14 @@ var _ xml.Marshaler = &Stream{}
 var _ fmt.Stringer = &Stream{}
 
 // <stream:error>
-// TODO Can this be consolidated with Error?
+// BUG(cjyar) Can this be consolidated with Error? Hide it if not.
 type StreamError struct {
 	Any definedCondition
 	Text *errText
 }
 var _ xml.Marshaler = &StreamError{}
 
-// TODO Replace this with Unrecognized.
+// BUG(cjyar) Replace this with Unrecognized.
 type definedCondition struct {
 	// Must always be in namespace nsStreams
 	XMLName xml.Name
@@ -62,7 +62,7 @@ type errText struct {
 }
 var _ xml.Marshaler = &errText{}
 
-// TODO Store this in Client and make it available to the app.
+// BUG(cjyar) Store this in Client and make it available to the app.
 type Features struct {
 	Starttls *starttls
 	Mechanisms mechs
@@ -155,7 +155,7 @@ type Error struct {
 var _ xml.Marshaler = &Error{}
 
 // Holds an XML element not described by the more specific types.
-// TODO Rename this to something like Generic.
+// BUG(cjyar) Rename this to something like Generic.
 type Unrecognized struct {
 	XMLName xml.Name
 	Any *Unrecognized
