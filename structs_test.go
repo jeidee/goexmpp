@@ -83,7 +83,7 @@ func TestStreamErrorMarshal(t *testing.T) {
 }
 
 func TestIqMarshal(t *testing.T) {
-	iq := &Iq{Type: "set", Id: "3", Any: &Unrecognized{XMLName:
+	iq := &Iq{Type: "set", Id: "3", Any: &Generic{XMLName:
 			xml.Name{Space: nsBind, Local: "bind"}}}
 	exp := `<iq id="3" type="set"><bind xmlns="` + nsBind +
 		`"></bind></iq>`

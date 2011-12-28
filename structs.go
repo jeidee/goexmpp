@@ -66,7 +66,7 @@ var _ xml.Marshaler = &errText{}
 type Features struct {
 	Starttls *starttls
 	Mechanisms mechs
-	Bind *Unrecognized
+	Bind *Generic
 }
 
 type starttls struct {
@@ -82,7 +82,7 @@ type auth struct {
 	XMLName xml.Name
 	Chardata string `xml:"chardata"`
 	Mechanism string `xml:"attr"`
-	Any *Unrecognized
+	Any *Generic
 }
 
 // One of the three core XMPP stanza types: iq, message, presence. See
@@ -103,7 +103,7 @@ type Stanza interface {
 	// A nested error element, if any.
 	XError() *Error
 	// A (non-error) nested element, if any.
-	XChild() *Unrecognized
+	XChild() *Generic
 }
 
 // message stanza
@@ -114,7 +114,7 @@ type Message struct {
 	Type string `xml:"attr"`
 	Lang string `xml:"attr"`
 	Error *Error
-	Any *Unrecognized
+	Any *Generic
 }
 var _ xml.Marshaler = &Message{}
 var _ Stanza = &Message{}
@@ -127,7 +127,7 @@ type Presence struct {
 	Type string `xml:"attr"`
 	Lang string `xml:"attr"`
 	Error *Error
-	Any *Unrecognized
+	Any *Generic
 }
 var _ xml.Marshaler = &Presence{}
 var _ Stanza = &Presence{}
@@ -140,7 +140,7 @@ type Iq struct {
 	Type string `xml:"attr"`
 	Lang string `xml:"attr"`
 	Error *Error
-	Any *Unrecognized
+	Any *Generic
 }
 var _ xml.Marshaler = &Iq{}
 var _ Stanza = &Iq{}
@@ -150,18 +150,17 @@ type Error struct {
 	// The error type attribute.
 	Type string `xml:"attr"`
 	// Any nested element, if present.
-	Any *Unrecognized
+	Any *Generic
 }
 var _ xml.Marshaler = &Error{}
 
 // Holds an XML element not described by the more specific types.
-// BUG(cjyar) Rename this to something like Generic.
-type Unrecognized struct {
+type Generic struct {
 	XMLName xml.Name
-	Any *Unrecognized
+	Any *Generic
 	Chardata string `xml:"chardata"`
 }
-var _ fmt.Stringer = &Unrecognized{}
+var _ fmt.Stringer = &Generic{}
 
 func (jid *JID) String() string {
 	result := jid.Domain
@@ -261,7 +260,7 @@ func writeField(w io.Writer, field, value string) {
 	}
 }
 
-func (u *Unrecognized) String() string {
+func (u *Generic) String() string {
 	var sub string
 	if u.Any != nil {
 		sub = u.Any.String()
@@ -344,7 +343,7 @@ func (m *Message) XError() *Error {
 	return m.Error
 }
 
-func (m *Message) XChild() *Unrecognized {
+func (m *Message) XChild() *Generic {
 	return m.Any
 }
 
@@ -380,7 +379,7 @@ func (p *Presence) XError() *Error {
 	return p.Error
 }
 
-func (p *Presence) XChild() *Unrecognized {
+func (p *Presence) XChild() *Generic {
 	return p.Any
 }
 
@@ -416,7 +415,7 @@ func (iq *Iq) XError() *Error {
 	return iq.Error
 }
 
-func (iq *Iq) XChild() *Unrecognized {
+func (iq *Iq) XChild() *Generic {
 	return iq.Any
 }
 

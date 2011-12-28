@@ -132,7 +132,7 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 		case "jabber:client presence":
 			obj = &Presence{}
 		default:
-			obj = &Unrecognized{}
+			obj = &Generic{}
 			log.Printf("Ignoring unrecognized: %s %s\n",
 				se.Name.Space, se.Name.Local)
 		}
@@ -145,7 +145,7 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 		}
 
 		// BUG(cjyar) If it's a Stanza, use reflection to
-		// search for any Unrecognized elements and fill in
+		// search for any Generic elements and fill in
 		// their attributes.
 
 		// Put it on the channel.
@@ -433,7 +433,7 @@ func (cl *Client) saslDigest2(srvMap map[string] string) {
 	} else {
 		clObj := &auth{XMLName: xml.Name{Space: nsSASL, Local:
 				"failure"}, Any:
-			&Unrecognized{XMLName: xml.Name{Space: nsSASL,
+			&Generic{XMLName: xml.Name{Space: nsSASL,
 				Local: "abort"}}}
 		cl.xmlOut <- clObj
 	}
@@ -490,13 +490,13 @@ func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 }
 
 // Send a request to bind a resource. RFC 3920, section 7.
-func (cl *Client) bind(bind *Unrecognized) {
+func (cl *Client) bind(bind *Generic) {
 	res := cl.Jid.Resource
 	msg := &Iq{Type: "set", Id: cl.NextId(), Any:
-		&Unrecognized{XMLName: xml.Name{Space: nsBind, Local:
+		&Generic{XMLName: xml.Name{Space: nsBind, Local:
 					"bind"}}}
 	if res != "" {
-		msg.Any.Any = &Unrecognized{XMLName: xml.Name{Local:
+		msg.Any.Any = &Generic{XMLName: xml.Name{Local:
 				"resource"}, Chardata: res}
 	}
 	f := func(st Stanza) bool {
