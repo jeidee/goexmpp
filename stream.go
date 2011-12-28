@@ -121,6 +121,10 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 			obj = &auth{}
 		case "jabber:client iq":
 			obj = &Iq{}
+		case "jabber:client message":
+			obj = &Message{}
+		case "jabber:client presence":
+			obj = &Presence{}
 		default:
 			obj = &Unrecognized{}
 			log.Printf("Ignoring unrecognized: %s %s\n",
