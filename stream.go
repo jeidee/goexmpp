@@ -475,6 +475,36 @@ func (cl *Client) bind(bind *Unrecognized) {
 		msg.Any.Any = &Unrecognized{XMLName: xml.Name{Local:
 				"resource"}, Chardata: res}
 	}
+	f := func(st Stanza) bool {
+		if st.XType() == "error" {
+			log.Println("Resource binding failed")
+			return false
+		}
+		bind := st.XChild()
+		if bind == nil {
+			log.Println("nil resource bind")
+			return false
+		}
+		jidEle := bind.Any
+		if jidEle == nil {
+			log.Println("nil resource")
+			return false
+		}
+		jidStr := jidEle.Chardata
+		if jidStr == "" {
+			log.Println("empty resource")
+			return false
+		}
+		jid := new(JID)
+		if !jid.Set(jidStr) {
+			log.Println("Can't parse JID %s", jidStr)
+			return false
+		}
+		cl.Jid = *jid
+		log.Printf("Bound resource: %s", cl.Jid.String())
+		return true
+	}
+	cl.HandleStanza(msg.Id, f)
 	cl.xmlOut <- msg
 }
 

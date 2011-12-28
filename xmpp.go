@@ -85,7 +85,7 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	cl.password = password
 	cl.Jid = *jid
 	cl.socket = tcp
-	cl.handlers = make(chan *stanzaHandler)
+	cl.handlers = make(chan *stanzaHandler, 1)
 
 	// Start the transport handler, initially unencrypted.
 	tlsr, tlsw := cl.startTransport()
