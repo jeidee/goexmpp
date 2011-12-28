@@ -4,18 +4,8 @@
 
 include $(GOROOT)/src/Make.inc
 
-TARG=cjyar/xmpp
+TARG=interact
 GOFILES=\
-	xmpp.go \
-	stream.go \
-	structs.go \
+	interact.go \
 
-examples: install
-	gomake -C examples all
-
-clean: clean-examples
-
-clean-examples:
-	gomake -C examples clean
-
-include $(GOROOT)/src/Make.pkg
+include $(GOROOT)/src/Make.cmd
