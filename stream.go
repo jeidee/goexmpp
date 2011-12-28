@@ -26,6 +26,11 @@ import (
 	"xml"
 )
 
+type stanzaHandler struct {
+	id string
+	f func(Stanza) bool
+}
+
 func (cl *Client) readTransport(w io.Writer) {
 	defer tryClose(cl.socket, w)
 	cl.socket.SetReadTimeout(1e8)
@@ -171,18 +176,35 @@ func writeText(w io.Writer, ch <-chan *string) {
 func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}) {
 	defer tryClose(srvIn, cliOut)
 
-	for x := range srvIn {
-		switch obj := x.(type) {
-		case *Stream:
-			handleStream(obj)
-		case *Features:
-			cl.handleFeatures(obj)
-		case *starttls:
-			cl.handleTls(obj)
-		case *auth:
-			cl.handleSasl(obj)
-		default:
-			cliOut <- x
+	handlers := make(map[string] func(Stanza) bool)
+	// TODO This for loop will never terminate, even when the
+	// channels are closed.
+	for {
+		select {
+		case h := <- cl.handlers:
+			handlers[h.id] = h.f
+		case x := <- srvIn:
+			send := false
+			switch obj := x.(type) {
+			case *Stream:
+				handleStream(obj)
+			case *Features:
+				cl.handleFeatures(obj)
+			case *starttls:
+				cl.handleTls(obj)
+			case *auth:
+				cl.handleSasl(obj)
+			default:
+				send = true
+			}
+			if st, ok := x.(Stanza) ; ok &&
+				handlers[st.XId()] != nil {
+				f := handlers[st.XId()]
+				send = f(st)
+			}
+			if send {
+				cliOut <- x
+			}
 		}
 	}
 }
@@ -454,4 +476,9 @@ func (cl *Client) bind(bind *Unrecognized) {
 	}
 	cl.xmlOut <- msg
 	// TODO Grab the iq result from the server and update cl.Jid.
+}
+
+func (cl *Client) HandleStanza(id string, f func(Stanza) bool) {
+	h := &stanzaHandler{id: id, f: f}
+	cl.handlers <- h
 }

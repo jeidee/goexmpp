@@ -43,6 +43,7 @@ type Client struct {
 	authDone bool
 	idMutex sync.Mutex
 	nextId int64
+	handlers chan *stanzaHandler
 	In <-chan interface{}
 	Out chan<- interface{}
 	xmlOut chan<- interface{}
@@ -84,6 +85,7 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	cl.password = password
 	cl.Jid = *jid
 	cl.socket = tcp
+	cl.handlers = make(chan *stanzaHandler)
 
 	// Start the transport handler, initially unencrypted.
 	tlsr, tlsw := cl.startTransport()
