@@ -10,4 +10,6 @@ GOFILES=\
 	stream.go \
 	structs.go \
 
+# TODO Add a target to build examples.
+
 include $(GOROOT)/src/Make.pkg

@@ -6,6 +6,9 @@
 // and 3921, plus the various XEPs at http://xmpp.org/protocols/.
 package xmpp
 
+// TODO Figure out why the library doesn't exit when the server closes
+// its stream to us.
+
 import (
 	"bytes"
 	"fmt"
@@ -30,11 +33,19 @@ const (
 	serverSrv = "xmpp-server"
 	clientSrv = "xmpp-client"
 
+	// TODO Make this a parameter to NewClient, not a
+	// constant. We should have both a log level and a
+	// syslog.Writer, so the app can control how much time we
+	// spend generating log messages, as well as where they go.
 	debug = true
 )
 
 // The client in a client-server XMPP connection.
 type Client struct {
+	// This client's JID. This will be updated asynchronously when
+	// resource binding completes; at that time an iq stanza will
+	// be published on the In channel:
+	// <iq><bind><jid>jid</jid></bind></iq>
 	Jid JID
 	password string
 	socket net.Conn
@@ -44,15 +55,26 @@ type Client struct {
 	idMutex sync.Mutex
 	nextId int64
 	handlers chan *stanzaHandler
+	// Incoming XMPP stanzas from the server will be published on
+	// this channel. Information which is only used by this
+	// library to set up the XMPP stream will not appear here.
+	// TODO Make these channels of type Stanza.
 	In <-chan interface{}
+	// Outgoing XMPP stanzas to the server should be sent to this
+	// channel.
 	Out chan<- interface{}
 	xmlOut chan<- interface{}
+	// TODO Remove this. Make a Stanza parser method available for
+	// use by interact.go and similar applications.
 	TextOut chan<- *string
 }
 var _ io.Closer = &Client{}
 
 // Connect to the appropriate server and authenticate as the given JID
-// with the given password.
+// with the given password. This function will return as soon as a TCP
+// connection has been established, but before XMPP stream negotiation
+// has completed. The negotiation will occur asynchronously, and sends
+// to Client.Out will block until negotiation is complete.
 func NewClient(jid *JID, password string) (*Client, os.Error) {
 	// Resolve the domain in the JID.
 	_, srvs, err := net.LookupSRV(clientSrv, "tcp", jid.Domain)
@@ -103,8 +125,6 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	// Initial handshake.
 	hsOut := &Stream{To: jid.Domain, Version: Version}
 	cl.xmlOut <- hsOut
-
-	// TODO Wait for initialization to finish.
 
 	cl.In = clIn
 	cl.Out = clOut
@@ -207,6 +227,8 @@ func tryClose(xs ...interface{}) {
 	}
 }
 
+// This convenience function may be used to generate a unique id for
+// use in the Id fields of iq, message, and presence stanzas.
 func (cl *Client) NextId() string {
 	cl.idMutex.Lock()
 	defer cl.idMutex.Unlock()

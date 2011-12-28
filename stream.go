@@ -5,7 +5,8 @@
 // This file contains the three layers of processing for the
 // communication with the server: transport (where TLS happens), XML
 // (where strings are converted to go structures), and Stream (where
-// we respond to XMPP events on behalf of the library client).
+// we respond to XMPP events on behalf of the library client), or send
+// those events to the client.
 
 package xmpp
 
@@ -26,10 +27,15 @@ import (
 	"xml"
 )
 
+// Callback to handle a stanza with a particular id.
 type stanzaHandler struct {
 	id string
+	// Return true means pass this to the application
 	f func(Stanza) bool
 }
+
+// TODO Review all these *Client receiver methods. They should
+// probably either all be receivers, or none.
 
 func (cl *Client) readTransport(w io.Writer) {
 	defer tryClose(cl.socket, w)
@@ -138,6 +144,10 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 			break
 		}
 
+		// TODO If it's a Stanza, use reflection to search for
+		// any Unrecognized elements and fill in their
+		// attributes.
+
 		// Put it on the channel.
 		ch <- obj
 	}
@@ -160,6 +170,8 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	}
 }
 
+// TODO This should go away. We shouldn't allow writing of
+// unstructured data.
 func writeText(w io.Writer, ch <-chan *string) {
 	if debug {
 		pr, pw := io.Pipe()
@@ -214,6 +226,9 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}
 	}
 }
 
+// TODO Disable this loop until resource binding is
+// complete. Otherwise the app might inject something weird into our
+// negotiation stream.
 func writeStream(srvOut chan<- interface{}, cliIn <-chan interface{}) {
 	defer tryClose(srvOut, cliIn)
 
@@ -240,6 +255,7 @@ func (cl *Client) handleFeatures(fe *Features) {
 
 	if fe.Bind != nil {
 		cl.bind(fe.Bind)
+		return
 	}
 }
 
@@ -291,6 +307,7 @@ func (cl *Client) waitForSocket() {
 	cl.socketSync.Done()
 }
 
+// TODO Implement TLS/SASL EXTERNAL.
 func (cl *Client) chooseSasl(fe *Features) {
 	var digestMd5 bool
 	for _, m := range(fe.Mechanisms.Mechanism) {
@@ -436,6 +453,7 @@ func parseSasl(in string) map[string]string {
 	return m
 }
 
+// Inverse of parseSasl().
 func packSasl(m map[string]string) string {
 	var terms []string
 	for key, value := range(m) {
@@ -447,6 +465,7 @@ func packSasl(m map[string]string) string {
 	return strings.Join(terms, ",")
 }
 
+// Computes the response string for digest authentication.
 func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 	authenticate, digestUri, nonceCountStr string) string {
 	h := func(text string) []byte {
@@ -470,6 +489,7 @@ func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 	return response
 }
 
+// Send a request to bind a resource. RFC 3920, section 7.
 func (cl *Client) bind(bind *Unrecognized) {
 	res := cl.Jid.Resource
 	msg := &Iq{Type: "set", Id: cl.NextId(), Any:
@@ -512,6 +532,10 @@ func (cl *Client) bind(bind *Unrecognized) {
 	cl.xmlOut <- msg
 }
 
+// Register a callback to handle the next XMPP stanza (iq, message, or
+// presence) with a given id. The provided function will not be called
+// more than once. If it returns false, the stanza will not be made
+// available on the normal Client.In channel.
 func (cl *Client) HandleStanza(id string, f func(Stanza) bool) {
 	h := &stanzaHandler{id: id, f: f}
 	cl.handlers <- h

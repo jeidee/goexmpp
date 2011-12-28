@@ -30,6 +30,7 @@ var _ fmt.Stringer = &JID{}
 var _ flag.Value = &JID{}
 
 // XMPP's <stream:stream> XML element
+// TODO Hide this.
 type Stream struct {
 	To string `xml:"attr"`
 	From string `xml:"attr"`
@@ -41,12 +42,14 @@ var _ xml.Marshaler = &Stream{}
 var _ fmt.Stringer = &Stream{}
 
 // <stream:error>
+// TODO Can this be consolidated with Error?
 type StreamError struct {
 	Any definedCondition
 	Text *errText
 }
 var _ xml.Marshaler = &StreamError{}
 
+// TODO Replace this with Unrecognized.
 type definedCondition struct {
 	// Must always be in namespace nsStreams
 	XMLName xml.Name
@@ -59,6 +62,7 @@ type errText struct {
 }
 var _ xml.Marshaler = &errText{}
 
+// TODO Store this in Client and make it available to the app.
 type Features struct {
 	Starttls *starttls
 	Mechanisms mechs
@@ -67,7 +71,7 @@ type Features struct {
 
 type starttls struct {
 	XMLName xml.Name
-	required *string
+	Required *string
 }
 
 type mechs struct {
@@ -81,17 +85,28 @@ type auth struct {
 	Any *Unrecognized
 }
 
+// One of the three core XMPP stanza types: iq, message, presence. See
+// RFC3920, section 9.
 type Stanza interface {
+	// Returns "iq", "message", or "presence".
 	XName() string
+	// The to attribute.
 	XTo() string
+	// The from attribute.
 	XFrom() string
+	// The id attribute.
 	XId() string
+	// The type attribute.
 	XType() string
+	// The xml:lang attribute.
 	XLang() string
+	// A nested error element, if any.
 	XError() *Error
+	// A (non-error) nested element, if any.
 	XChild() *Unrecognized
 }
 
+// message stanza
 type Message struct {
 	To string `xml:"attr"`
 	From string `xml:"attr"`
@@ -104,6 +119,7 @@ type Message struct {
 var _ xml.Marshaler = &Message{}
 var _ Stanza = &Message{}
 
+// presence stanza
 type Presence struct {
 	To string `xml:"attr"`
 	From string `xml:"attr"`
@@ -116,6 +132,7 @@ type Presence struct {
 var _ xml.Marshaler = &Presence{}
 var _ Stanza = &Presence{}
 
+// iq stanza
 type Iq struct {
 	To string `xml:"attr"`
 	From string `xml:"attr"`
@@ -128,12 +145,16 @@ type Iq struct {
 var _ xml.Marshaler = &Iq{}
 var _ Stanza = &Iq{}
 
+// Describes an XMPP stanza error. See RFC 3920, Section 9.3.
 type Error struct {
+	// The error type attribute.
 	Type string `xml:"attr"`
+	// Any nested element, if present.
 	Any *Unrecognized
 }
 var _ xml.Marshaler = &Error{}
 
+// Holds an XML element not described by the more specific types.
 // TODO Rename this to something like Generic.
 type Unrecognized struct {
 	XMLName xml.Name
