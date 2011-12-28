@@ -24,6 +24,7 @@ const (
 	nsStream = "http://etherx.jabber.org/streams"
 	nsTLS = "urn:ietf:params:xml:ns:xmpp-tls"
 	nsSASL = "urn:ietf:params:xml:ns:xmpp-sasl"
+	nsBind = "urn:ietf:params:xml:ns:xmpp-bind"
 
 	// DNS SRV names
 	serverSrv = "xmpp-server"
@@ -39,6 +40,9 @@ type Client struct {
 	socket net.Conn
 	socketSync sync.WaitGroup
 	saslExpected string
+	authDone bool
+	idMutex sync.Mutex
+	nextId int64
 	In <-chan interface{}
 	Out chan<- interface{}
 	xmlOut chan<- interface{}
@@ -199,4 +203,12 @@ func tryClose(xs ...interface{}) {
 			f2(ch)
 		}
 	}
+}
+
+func (cl *Client) NextId() string {
+	cl.idMutex.Lock()
+	defer cl.idMutex.Unlock()
+	id := cl.nextId
+	cl.nextId++
+	return fmt.Sprintf("id_%d", id)
 }

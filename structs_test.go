@@ -25,7 +25,7 @@ func TestJid(t *testing.T) {
 	}
 	assertEquals(t, "user", *jid.Node)
 	assertEquals(t, "domain", jid.Domain)
-	assertEquals(t, "res", *jid.Resource)
+	assertEquals(t, "res", jid.Resource)
 	assertEquals(t, str, jid.String())
 
 	str = "domain.tld"
@@ -36,8 +36,8 @@ func TestJid(t *testing.T) {
 		t.Errorf("Node: %v\n", *jid.Node)
 	}
 	assertEquals(t, "domain.tld", jid.Domain)
-	if jid.Resource != nil {
-		t.Errorf("Resource: %v\n", *jid.Resource)
+	if jid.Resource != "" {
+		t.Errorf("Resource: %v\n", jid.Resource)
 	}
 	assertEquals(t, str, jid.String())
 }
@@ -80,4 +80,12 @@ func TestStreamErrorMarshal(t *testing.T) {
 		`"></ack><text xmlns="` + nsStreams +
 		`" xml:lang="pt">things happen</text></stream:error>`
 	assertMarshal(t, exp, e)
+}
+
+func TestIqMarshal(t *testing.T) {
+	iq := &Iq{Type: "set", Id: "3", Any: &Unrecognized{XMLName:
+			xml.Name{Space: nsBind, Local: "bind"}}}
+	exp := `<iq id="3" type="set"><bind xmlns="` + nsBind +
+		`"></bind></iq>`
+	assertMarshal(t, exp, iq)
 }

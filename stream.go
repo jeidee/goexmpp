@@ -114,6 +114,8 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 		case nsSASL + " challenge", nsSASL + " failure",
 			nsSASL + " success":
 			obj = &auth{}
+		case "jabber:client iq":
+			obj = &Iq{}
 		default:
 			obj = &Unrecognized{}
 			log.Printf("Ignoring unrecognized: %s %s\n",
@@ -207,6 +209,10 @@ func (cl *Client) handleFeatures(fe *Features) {
 	if len(fe.Mechanisms.Mechanism) > 0 {
 		cl.chooseSasl(fe)
 		return
+	}
+
+	if fe.Bind != nil {
+		cl.bind(fe.Bind)
 	}
 }
 
@@ -435,4 +441,17 @@ func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 		nonceCountStr + ":" + cnonceStr + ":auth:" +
 		hex(h(a2))))
 	return response
+}
+
+func (cl *Client) bind(bind *Unrecognized) {
+	res := cl.Jid.Resource
+	msg := &Iq{Type: "set", Id: cl.NextId(), Any:
+		&Unrecognized{XMLName: xml.Name{Space: nsBind, Local:
+					"bind"}}}
+	if res != "" {
+		msg.Any.Any = &Unrecognized{XMLName: xml.Name{Local:
+				"resource"}, Chardata: res}
+	}
+	cl.xmlOut <- msg
+	// TODO Grab the iq result from the server and update cl.Jid.
 }

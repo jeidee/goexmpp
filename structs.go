@@ -21,9 +21,10 @@ import (
 // entities. It looks like node@domain/resource. Node and resource are
 // sometimes optional.
 type JID struct {
+	// TODO Make this not a pointer.
 	Node *string
 	Domain string
-	Resource *string
+	Resource string
 }
 var _ fmt.Stringer = &JID{}
 var _ flag.Value = &JID{}
@@ -61,6 +62,7 @@ var _ xml.Marshaler = &errText{}
 type Features struct {
 	Starttls *starttls
 	Mechanisms mechs
+	Bind *Unrecognized
 }
 
 type starttls struct {
@@ -79,8 +81,64 @@ type auth struct {
 	Any *Unrecognized
 }
 
+type Stanza interface {
+	XName() string
+	XTo() string
+	XFrom() string
+	XId() string
+	XType() string
+	XLang() string
+	XError() *Error
+	XChild() *Unrecognized
+}
+
+type Message struct {
+	To string `xml:"attr"`
+	From string `xml:"attr"`
+	Id string `xml:"attr"`
+	Type string `xml:"attr"`
+	Lang string `xml:"attr"`
+	Error *Error
+	Any *Unrecognized
+}
+var _ xml.Marshaler = &Message{}
+var _ Stanza = &Message{}
+
+type Presence struct {
+	To string `xml:"attr"`
+	From string `xml:"attr"`
+	Id string `xml:"attr"`
+	Type string `xml:"attr"`
+	Lang string `xml:"attr"`
+	Error *Error
+	Any *Unrecognized
+}
+var _ xml.Marshaler = &Presence{}
+var _ Stanza = &Presence{}
+
+type Iq struct {
+	To string `xml:"attr"`
+	From string `xml:"attr"`
+	Id string `xml:"attr"`
+	Type string `xml:"attr"`
+	Lang string `xml:"attr"`
+	Error *Error
+	Any *Unrecognized
+}
+var _ xml.Marshaler = &Iq{}
+var _ Stanza = &Iq{}
+
+type Error struct {
+	Type string `xml:"attr"`
+	Any *Unrecognized
+}
+var _ xml.Marshaler = &Error{}
+
+// TODO Rename this to something like Generic.
 type Unrecognized struct {
 	XMLName xml.Name
+	Any *Unrecognized
+	Chardata string `xml:"chardata"`
 }
 var _ fmt.Stringer = &Unrecognized{}
 
@@ -89,8 +147,8 @@ func (jid *JID) String() string {
 	if jid.Node != nil {
 		result = *jid.Node + "@" + result
 	}
-	if jid.Resource != nil {
-		result = result + "/" + *jid.Resource
+	if jid.Resource != "" {
+		result = result + "/" + jid.Resource
 	}
 	return result
 }
@@ -107,11 +165,7 @@ func (jid *JID) Set(val string) bool {
 		jid.Node = &parts[2]
 	}
 	jid.Domain = parts[3]
-	if parts[5] == "" {
-		jid.Resource = nil
-	} else {
-		jid.Resource = &parts[5]
-	}
+	jid.Resource = parts[5]
 	return true
 }
 
@@ -187,6 +241,164 @@ func writeField(w io.Writer, field, value string) {
 }
 
 func (u *Unrecognized) String() string {
-	return fmt.Sprintf("unrecognized{%s %s}", u.XMLName.Space,
+	var sub string
+	if u.Any != nil {
+		sub = u.Any.String()
+	}
+	return fmt.Sprintf("<%s %s>%s%s</%s %s>", u.XMLName.Space,
+		u.XMLName.Local, sub, u.Chardata, u.XMLName.Space,
 		u.XMLName.Local)
+}
+
+func marshalXML(st Stanza) ([]byte, os.Error) {
+	buf := bytes.NewBuffer(nil)
+	buf.WriteString("<")
+	buf.WriteString(st.XName())
+	if st.XTo() != "" {
+		writeField(buf, "to", st.XTo())
+	}
+	if st.XFrom() != "" {
+		writeField(buf, "from", st.XFrom())
+	}
+	if st.XId() != "" {
+		writeField(buf, "id", st.XId())
+	}
+	if st.XType() != "" {
+		writeField(buf, "type", st.XType())
+	}
+	if st.XLang() != "" {
+		writeField(buf, "xml:lang", st.XLang())
+	}
+	buf.WriteString(">")
+	if st.XError() != nil {
+		bytes, _ := st.XError().MarshalXML()
+		buf.WriteString(string(bytes))
+	}
+	if st.XChild() != nil {
+		xml.Marshal(buf, st.XChild())
+	}
+	buf.WriteString("</")
+	buf.WriteString(st.XName())
+	buf.WriteString(">")
+	return buf.Bytes(), nil
+}
+
+func (er *Error) MarshalXML() ([]byte, os.Error) {
+	buf := bytes.NewBuffer(nil)
+	buf.WriteString("<error")
+	writeField(buf, "type", er.Type)
+	buf.WriteString(">")
+	if er.Any != nil {
+		xml.Marshal(buf, er.Any)
+	}
+	buf.WriteString("</error>")
+	return buf.Bytes(), nil
+}
+
+func (m *Message) XName() string {
+	return "message"
+}
+
+func (m *Message) XTo() string {
+	return m.To
+}
+
+func (m *Message) XFrom() string {
+	return m.From
+}
+
+func (m *Message) XId() string {
+	return m.Id
+}
+
+func (m *Message) XType() string {
+	return m.Type
+	}
+
+func (m *Message) XLang() string {
+	return m.Lang
+}
+
+func (m *Message) XError() *Error {
+	return m.Error
+}
+
+func (m *Message) XChild() *Unrecognized {
+	return m.Any
+}
+
+func (m *Message) MarshalXML() ([]byte, os.Error) {
+	return marshalXML(m)
+}
+
+func (p *Presence) XName() string {
+	return "presence"
+}
+
+func (p *Presence) XTo() string {
+	return p.To
+}
+
+func (p *Presence) XFrom() string {
+	return p.From
+}
+
+func (p *Presence) XId() string {
+	return p.Id
+}
+
+func (p *Presence) XType() string {
+	return p.Type
+	}
+
+func (p *Presence) XLang() string {
+	return p.Lang
+}
+
+func (p *Presence) XError() *Error {
+	return p.Error
+}
+
+func (p *Presence) XChild() *Unrecognized {
+	return p.Any
+}
+
+func (p *Presence) MarshalXML() ([]byte, os.Error) {
+	return marshalXML(p)
+}
+
+func (iq *Iq) XName() string {
+	return "iq"
+}
+
+func (iq *Iq) XTo() string {
+	return iq.To
+}
+
+func (iq *Iq) XFrom() string {
+	return iq.From
+}
+
+func (iq *Iq) XId() string {
+	return iq.Id
+}
+
+func (iq *Iq) XType() string {
+	return iq.Type
+	}
+
+func (iq *Iq) XLang() string {
+	return iq.Lang
+}
+
+func (iq *Iq) XError() *Error {
+	return iq.Error
+}
+
+func (iq *Iq) XChild() *Unrecognized {
+	return iq.Any
+}
+
+func (iq *Iq) MarshalXML() ([]byte, os.Error) {
+	return marshalXML(iq)
 }
