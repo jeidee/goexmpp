@@ -21,8 +21,7 @@ import (
 // entities. It looks like node@domain/resource. Node and resource are
 // sometimes optional.
 type JID struct {
-	// BUG(cjyar) Make this not a pointer.
-	Node *string
+	Node string
 	Domain string
 	Resource string
 }
@@ -156,8 +155,8 @@ var _ fmt.Stringer = &Generic{}
 
 func (jid *JID) String() string {
 	result := jid.Domain
-	if jid.Node != nil {
-		result = *jid.Node + "@" + result
+	if jid.Node != "" {
+		result = jid.Node + "@" + result
 	}
 	if jid.Resource != "" {
 		result = result + "/" + jid.Resource
@@ -171,11 +170,7 @@ func (jid *JID) Set(val string) bool {
 	if parts == nil {
 		return false
 	}
-	if parts[2] == "" {
-		jid.Node = nil
-	} else {
-		jid.Node = &parts[2]
-	}
+	jid.Node = parts[2]
 	jid.Domain = parts[3]
 	jid.Resource = parts[5]
 	return true
