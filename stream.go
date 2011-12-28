@@ -189,7 +189,7 @@ func writeText(w io.Writer, ch <-chan *string) {
 	}
 }
 
-func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}) {
+func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 	defer tryClose(srvIn, cliOut)
 
 	handlers := make(map[string] func(Stanza) bool)
@@ -213,14 +213,19 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}
 			default:
 				send = true
 			}
-			if st, ok := x.(Stanza) ; ok &&
-				handlers[st.XId()] != nil {
+			st, ok := x.(Stanza)
+			if !ok {
+				log.Printf("Unhandled non-stanza: %v",
+					x)
+				continue
+			}
+			if handlers[st.XId()] != nil {
 				f := handlers[st.XId()]
 				handlers[st.XId()] = nil
 				send = f(st)
 			}
 			if send {
-				cliOut <- x
+				cliOut <- st
 			}
 		}
 	}
@@ -229,7 +234,7 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}
 // BUG(cjyar) Disable this loop until resource binding is
 // complete. Otherwise the app might inject something weird into our
 // negotiation stream.
-func writeStream(srvOut chan<- interface{}, cliIn <-chan interface{}) {
+func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza) {
 	defer tryClose(srvOut, cliIn)
 
 	for x := range cliIn {

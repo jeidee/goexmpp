@@ -58,11 +58,10 @@ type Client struct {
 	// Incoming XMPP stanzas from the server will be published on
 	// this channel. Information which is only used by this
 	// library to set up the XMPP stream will not appear here.
-	// BUG(cjyar) Make these channels of type Stanza.
-	In <-chan interface{}
+	In <-chan Stanza
 	// Outgoing XMPP stanzas to the server should be sent to this
 	// channel.
-	Out chan<- interface{}
+	Out chan<- Stanza
 	xmlOut chan<- interface{}
 	// BUG(cjyar) Remove this. Make a Stanza parser method
 	// available for use by interact.go and similar applications.
@@ -164,14 +163,14 @@ func startTextWriter(w io.Writer) chan<- *string {
 	return ch
 }
 
-func (cl *Client) startStreamReader(xmlIn <-chan interface{}, srvOut chan<- interface{}) <-chan interface{} {
-	ch := make(chan interface{})
+func (cl *Client) startStreamReader(xmlIn <-chan interface{}, srvOut chan<- interface{}) <-chan Stanza {
+	ch := make(chan Stanza)
 	go cl.readStream(xmlIn, ch)
 	return ch
 }
 
-func startStreamWriter(xmlOut chan<- interface{}) chan<- interface{} {
-	ch := make(chan interface{})
+func startStreamWriter(xmlOut chan<- interface{}) chan<- Stanza {
+	ch := make(chan Stanza)
 	go writeStream(xmlOut, ch)
 	return ch
 }

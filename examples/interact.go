@@ -30,7 +30,7 @@ func main() {
 	}
 	defer c.Close()
 
-	go func(ch <-chan interface{}) {
+	go func(ch <-chan xmpp.Stanza) {
 		for obj := range ch {
 			fmt.Printf("s: %v\n", obj)
 		}
