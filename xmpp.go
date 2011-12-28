@@ -69,8 +69,9 @@ var _ io.Closer = &Client{}
 // Connect to the appropriate server and authenticate as the given JID
 // with the given password. This function will return as soon as a TCP
 // connection has been established, but before XMPP stream negotiation
-// has completed. The negotiation will occur asynchronously, and sends
-// to Client.Out will block until negotiation is complete.
+// has completed. The negotiation will occur asynchronously, and any
+// send operation to Client.Out will block until negotiation (resource
+// binding) is complete.
 func NewClient(jid *JID, password string) (*Client, os.Error) {
 	// Resolve the domain in the JID.
 	_, srvs, err := net.LookupSRV(clientSrv, "tcp", jid.Domain)
