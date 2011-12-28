@@ -50,18 +50,18 @@ func assertMarshal(t *testing.T, expected string, marshal interface{}) {
 }
 
 func TestStreamMarshal(t *testing.T) {
-	s := &Stream{To: "bob"}
+	s := &stream{To: "bob"}
 	exp := `<stream:stream xmlns="jabber:client"` +
 		` xmlns:stream="` + nsStream + `" to="bob">`
 	assertMarshal(t, exp, s)
 
-	s = &Stream{To: "bob", From: "alice", Id: "#3", Version: "5.3"}
+	s = &stream{To: "bob", From: "alice", Id: "#3", Version: "5.3"}
 	exp = `<stream:stream xmlns="jabber:client"` +
 		` xmlns:stream="` + nsStream + `" to="bob" from="alice"` +
 		` id="#3" version="5.3">`
 	assertMarshal(t, exp, s)
 
-	s = &Stream{Lang: "en_US"}
+	s = &stream{Lang: "en_US"}
 	exp = `<stream:stream xmlns="jabber:client"` +
 		` xmlns:stream="` + nsStream + `" xml:lang="en_US">`
 	assertMarshal(t, exp, s)

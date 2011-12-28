@@ -202,7 +202,7 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}
 		case x := <- srvIn:
 			send := false
 			switch obj := x.(type) {
-			case *Stream:
+			case *stream:
 				handleStream(obj)
 			case *Features:
 				cl.handleFeatures(obj)
@@ -237,7 +237,7 @@ func writeStream(srvOut chan<- interface{}, cliIn <-chan interface{}) {
 	}
 }
 
-func handleStream(ss *Stream) {
+func handleStream(ss *stream) {
 }
 
 func (cl *Client) handleFeatures(fe *Features) {
@@ -288,7 +288,7 @@ func (cl *Client) handleTls(t *starttls) {
 
 	// Now re-send the initial handshake message to start the new
 	// session.
-	hsOut := &Stream{To: cl.Jid.Domain, Version: Version}
+	hsOut := &stream{To: cl.Jid.Domain, Version: Version}
 	cl.xmlOut <- hsOut
 }
 
@@ -345,7 +345,7 @@ func (cl *Client) handleSasl(srv *auth) {
 		log.Println("SASL authentication failed")
 	case "success":
 		log.Println("SASL authentication succeeded")
-		ss := &Stream{To: cl.Jid.Domain, Version: Version}
+		ss := &stream{To: cl.Jid.Domain, Version: Version}
 		cl.xmlOut <- ss
 	}
 }

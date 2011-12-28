@@ -123,7 +123,7 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	clOut := startStreamWriter(cl.xmlOut)
 
 	// Initial handshake.
-	hsOut := &Stream{To: jid.Domain, Version: Version}
+	hsOut := &stream{To: jid.Domain, Version: Version}
 	cl.xmlOut <- hsOut
 
 	cl.In = clIn

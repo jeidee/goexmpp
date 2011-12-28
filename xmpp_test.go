@@ -52,9 +52,9 @@ func TestReadStream(t *testing.T) {
 	ch := make(chan interface{})
 	go readXml(r, ch)
 	x := <- ch
-	ss, ok := x.(*Stream)
+	ss, ok := x.(*stream)
 	if !ok {
-		t.Fatalf("not Stream: %v", reflect.TypeOf(x))
+		t.Fatalf("not stream: %v", reflect.TypeOf(x))
 	}
 	assertEquals(t, "foo.com", ss.To)
 	assertEquals(t, "bar.org", ss.From)
@@ -95,7 +95,7 @@ func TestWriteError(t *testing.T) {
 }
 
 func TestWriteStream(t *testing.T) {
-	ss := &Stream{To: "foo.org", From: "bar.com", Id: "42", Lang:
+	ss := &stream{To: "foo.org", From: "bar.com", Id: "42", Lang:
 		"en", Version: "1.0"}
 	str := testWrite(ss)
 	exp := `<stream:stream xmlns="jabber:client"` +

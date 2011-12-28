@@ -30,16 +30,15 @@ var _ fmt.Stringer = &JID{}
 var _ flag.Value = &JID{}
 
 // XMPP's <stream:stream> XML element
-// BUG(cjyar) Hide this.
-type Stream struct {
+type stream struct {
 	To string `xml:"attr"`
 	From string `xml:"attr"`
 	Id string `xml:"attr"`
 	Lang string `xml:"attr"`
 	Version string `xml:"attr"`
 }
-var _ xml.Marshaler = &Stream{}
-var _ fmt.Stringer = &Stream{}
+var _ xml.Marshaler = &stream{}
+var _ fmt.Stringer = &stream{}
 
 // <stream:error>
 // BUG(cjyar) Can this be consolidated with Error? Hide it if not.
@@ -49,7 +48,7 @@ type StreamError struct {
 }
 var _ xml.Marshaler = &StreamError{}
 
-// BUG(cjyar) Replace this with Unrecognized.
+// BUG(cjyar) Replace this with Generic.
 type definedCondition struct {
 	// Must always be in namespace nsStreams
 	XMLName xml.Name
@@ -189,7 +188,7 @@ func (jid *JID) Set(val string) bool {
 	return true
 }
 
-func (s *Stream) MarshalXML() ([]byte, os.Error) {
+func (s *stream) MarshalXML() ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<stream:stream")
 	writeField(buf, "xmlns", "jabber:client")
@@ -204,13 +203,13 @@ func (s *Stream) MarshalXML() ([]byte, os.Error) {
 	return buf.Bytes(), nil
 }
 
-func (s *Stream) String() string {
+func (s *stream) String() string {
 	result, _ := s.MarshalXML()
 	return string(result)
 }
 
-func parseStream(se xml.StartElement) (*Stream, os.Error) {
-	s := &Stream{}
+func parseStream(se xml.StartElement) (*stream, os.Error) {
+	s := &stream{}
 	for _, attr := range se.Attr {
 		switch strings.ToLower(attr.Name.Local) {
 		case "to":
