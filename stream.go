@@ -200,6 +200,7 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}
 			if st, ok := x.(Stanza) ; ok &&
 				handlers[st.XId()] != nil {
 				f := handlers[st.XId()]
+				handlers[st.XId()] = nil
 				send = f(st)
 			}
 			if send {
@@ -475,7 +476,6 @@ func (cl *Client) bind(bind *Unrecognized) {
 				"resource"}, Chardata: res}
 	}
 	cl.xmlOut <- msg
-	// TODO Grab the iq result from the server and update cl.Jid.
 }
 
 func (cl *Client) HandleStanza(id string, f func(Stanza) bool) {
