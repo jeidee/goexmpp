@@ -13,9 +13,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"sync"
+	"xml"
 )
 
 const (
@@ -28,6 +30,7 @@ const (
 	nsTLS = "urn:ietf:params:xml:ns:xmpp-tls"
 	nsSASL = "urn:ietf:params:xml:ns:xmpp-sasl"
 	nsBind = "urn:ietf:params:xml:ns:xmpp-bind"
+	nsSession = "urn:ietf:params:xml:ns:xmpp-session"
 
 	// DNS SRV names
 	serverSrv = "xmpp-server"
@@ -218,10 +221,41 @@ func tryClose(xs ...interface{}) {
 
 // This convenience function may be used to generate a unique id for
 // use in the Id fields of iq, message, and presence stanzas.
+// BUG(cjyar) This should be replaced with a goroutine that feeds a
+// channel.
 func (cl *Client) NextId() string {
 	cl.idMutex.Lock()
 	defer cl.idMutex.Unlock()
 	id := cl.nextId
 	cl.nextId++
 	return fmt.Sprintf("id_%d", id)
+}
+
+// Start an XMPP session. This should typically be done immediately
+// after creating the new Client. Once the session has been
+// established, pr will be sent as an initial presence; nil means
+// don't send initial presence. The initial presence can be a
+// newly-initialized Presence struct. See RFC 3921, Section 3.
+func (cl *Client) StartSession(pr *Presence) os.Error {
+	id := cl.NextId()
+	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Any:
+		&Generic{XMLName: xml.Name{Space: nsSession, Local:
+				"session"}}}
+	ch := make(chan os.Error)
+	f := func(st Stanza) bool {
+		if st.XType() == "error" {
+			log.Printf("Can't start session: %v", st)
+			ch <- st.XError()
+			return false
+		}
+		if pr != nil {
+			cl.Out <- pr
+		}
+		ch <- nil
+		return false
+	}
+	cl.HandleStanza(id, f)
+	cl.Out <- iq
+	// Now wait until the callback is called.
+	return <-ch
 }

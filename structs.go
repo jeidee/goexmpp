@@ -105,6 +105,9 @@ type Message struct {
 	Type string `xml:"attr"`
 	Lang string `xml:"attr"`
 	Error *Error
+	Subject *Generic
+	Body *Generic
+	Thread *Generic
 	Any *Generic
 }
 var _ xml.Marshaler = &Message{}
@@ -118,6 +121,9 @@ type Presence struct {
 	Type string `xml:"attr"`
 	Lang string `xml:"attr"`
 	Error *Error
+	Show *Generic
+	Status *Generic
+	Priority *Generic
 	Any *Generic
 }
 var _ xml.Marshaler = &Presence{}
@@ -144,6 +150,7 @@ type Error struct {
 	Any *Generic
 }
 var _ xml.Marshaler = &Error{}
+var _ os.Error = &Error{}
 
 // Holds an XML element not described by the more specific types.
 type Generic struct {
@@ -300,6 +307,11 @@ func (er *Error) MarshalXML() ([]byte, os.Error) {
 	}
 	buf.WriteString("</error>")
 	return buf.Bytes(), nil
+}
+
+func (er *Error) String() string {
+	bytes, _ := er.MarshalXML()
+	return string(bytes)
 }
 
 func (m *Message) XName() string {
