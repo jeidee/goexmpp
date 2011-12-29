@@ -30,6 +30,11 @@ func main() {
 	}
 	defer c.Close()
 
+	err = c.StartSession(&xmpp.Presence{})
+	if err != nil {
+		log.Fatalf("StartSession: %v", err)
+	}
+
 	go func(ch <-chan xmpp.Stanza) {
 		for obj := range ch {
 			fmt.Printf("s: %v\n", obj)

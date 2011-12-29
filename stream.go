@@ -195,6 +195,9 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 			default:
 				send = true
 			}
+			if !send {
+				continue
+			}
 			st, ok := x.(Stanza)
 			if !ok {
 				log.Printf("Unhandled non-stanza: %v",
@@ -213,14 +216,29 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 	}
 }
 
-// BUG(cjyar) Disable this loop until resource binding is
-// complete. Otherwise the app might inject something weird into our
-// negotiation stream.
-func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza) {
+// This loop is paused until resource binding is complete. Otherwise
+// the app might inject something inappropriate into our negotiations
+// with the server. The control channel controls this loop's
+// activity.
+func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
+	control <-chan int) {
 	defer tryClose(srvOut, cliIn)
 
-	for x := range cliIn {
-		srvOut <- x
+	var input <-chan Stanza
+	for {
+		select {
+		case status := <- control:
+			switch status {
+			case 0:
+				input = nil
+			case 1:
+				input = cliIn
+			case -1:
+				break
+			}
+		case x := <- input:
+			srvOut <- x
+		}
 	}
 }
 
@@ -513,7 +531,8 @@ func (cl *Client) bind(bind *Generic) {
 		}
 		cl.Jid = *jid
 		log.Printf("Bound resource: %s", cl.Jid.String())
-		return true
+		cl.bindDone()
+		return false
 	}
 	cl.HandleStanza(msg.Id, f)
 	cl.xmlOut <- msg

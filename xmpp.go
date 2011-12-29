@@ -45,10 +45,8 @@ const (
 
 // The client in a client-server XMPP connection.
 type Client struct {
-	// This client's JID. This will be updated asynchronously when
-	// resource binding completes; at that time an iq stanza will
-	// be published on the In channel:
-	// <iq><bind><jid>jid</jid></bind></iq>
+	// This client's JID. This will be updated asynchronously by
+	// the time StartSession() returns.
 	Jid JID
 	password string
 	socket net.Conn
@@ -58,6 +56,7 @@ type Client struct {
 	idMutex sync.Mutex
 	nextId int64
 	handlers chan *stanzaHandler
+	inputControl chan int
 	// Incoming XMPP stanzas from the server will be published on
 	// this channel. Information which is only used by this
 	// library to set up the XMPP stream will not appear here.
@@ -108,6 +107,7 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	cl.Jid = *jid
 	cl.socket = tcp
 	cl.handlers = make(chan *stanzaHandler, 1)
+	cl.inputControl = make(chan int)
 
 	// Start the transport handler, initially unencrypted.
 	tlsr, tlsw := cl.startTransport()
@@ -119,7 +119,7 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	// Start the XMPP stream handler which filters stream-level
 	// events and responds to them.
 	clIn := cl.startStreamReader(xmlIn, cl.xmlOut)
-	clOut := startStreamWriter(cl.xmlOut)
+	clOut := cl.startStreamWriter(cl.xmlOut)
 
 	// Initial handshake.
 	hsOut := &stream{To: jid.Domain, Version: Version}
@@ -162,9 +162,9 @@ func (cl *Client) startStreamReader(xmlIn <-chan interface{}, srvOut chan<- inte
 	return ch
 }
 
-func startStreamWriter(xmlOut chan<- interface{}) chan<- Stanza {
+func (cl *Client) startStreamWriter(xmlOut chan<- interface{}) chan<- Stanza {
 	ch := make(chan Stanza)
-	go writeStream(xmlOut, ch)
+	go writeStream(xmlOut, ch, cl.inputControl)
 	return ch
 }
 
@@ -229,6 +229,13 @@ func (cl *Client) NextId() string {
 	id := cl.nextId
 	cl.nextId++
 	return fmt.Sprintf("id_%d", id)
+}
+
+// bindDone is called when we've finished resource binding (and all
+// the negotiations that precede it). Now we can start accepting
+// traffic from the app.
+func (cl *Client) bindDone() {
+	cl.inputControl <- 1
 }
 
 // Start an XMPP session. This should typically be done immediately
