@@ -69,13 +69,13 @@ func TestStreamMarshal(t *testing.T) {
 
 func TestStreamErrorMarshal(t *testing.T) {
 	name := xml.Name{Space: nsStreams, Local: "ack"}
-	e := &StreamError{Any: Generic{XMLName: name}}
+	e := &streamError{Any: Generic{XMLName: name}}
 	exp := `<stream:error><ack xmlns="` + nsStreams +
 		`"></ack></stream:error>`;
 	assertMarshal(t, exp, e)
 
 	txt := errText{Lang: "pt", Text: "things happen"}
-	e = &StreamError{Any: Generic{XMLName: name}, Text: &txt}
+	e = &streamError{Any: Generic{XMLName: name}, Text: &txt}
 	exp = `<stream:error><ack xmlns="` + nsStreams +
 		`"></ack><text xmlns="` + nsStreams +
 		`" xml:lang="pt">things happen</text></stream:error>`

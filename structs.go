@@ -40,12 +40,11 @@ var _ xml.Marshaler = &stream{}
 var _ fmt.Stringer = &stream{}
 
 // <stream:error>
-// BUG(cjyar) Can this be consolidated with Error? Hide it if not.
-type StreamError struct {
+type streamError struct {
 	Any Generic
 	Text *errText
 }
-var _ xml.Marshaler = &StreamError{}
+var _ xml.Marshaler = &streamError{}
 
 type errText struct {
 	Lang string `xml:"attr"`
@@ -222,7 +221,7 @@ func parseStream(se xml.StartElement) (*stream, os.Error) {
 	return s, nil
 }
 
-func (s *StreamError) MarshalXML() ([]byte, os.Error) {
+func (s *streamError) MarshalXML() ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<stream:error>")
 	xml.Marshal(buf, s.Any)

@@ -117,7 +117,7 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 			ch <- st
 			continue
 		case "stream error", nsStream + " error":
-			obj = &StreamError{}
+			obj = &streamError{}
 		case nsStream + " features":
 			obj = &Features{}
 		case nsTLS + " proceed", nsTLS + " failure":
@@ -186,6 +186,8 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 			switch obj := x.(type) {
 			case *stream:
 				handleStream(obj)
+			case *streamError:
+				cl.handleStreamError(obj)
 			case *Features:
 				cl.handleFeatures(obj)
 			case *starttls:
@@ -243,6 +245,11 @@ func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
 }
 
 func handleStream(ss *stream) {
+}
+
+func (cl *Client) handleStreamError(se *streamError) {
+	log.Printf("Received stream error: %v", se)
+	cl.Close()
 }
 
 func (cl *Client) handleFeatures(fe *Features) {

@@ -18,7 +18,7 @@ func TestReadError(t *testing.T) {
 	ch := make(chan interface{})
 	go readXml(r, ch)
 	x := <- ch
-	se, ok := x.(*StreamError)
+	se, ok := x.(*streamError)
 	if !ok {
 		t.Fatalf("not StreamError: %v", reflect.TypeOf(x))
 	}
@@ -34,7 +34,7 @@ func TestReadError(t *testing.T) {
 	ch = make(chan interface{})
 	go readXml(r, ch)
 	x = <- ch
-	se, ok = x.(*StreamError)
+	se, ok = x.(*streamError)
 	if !ok {
 		t.Fatalf("not StreamError: %v", reflect.TypeOf(x))
 	}
@@ -78,13 +78,13 @@ func testWrite(obj interface{}) string {
 }
 
 func TestWriteError(t *testing.T) {
-	se := &StreamError{Any: Generic{XMLName: xml.Name{Local:
+	se := &streamError{Any: Generic{XMLName: xml.Name{Local:
 				"blah"}}}
 	str := testWrite(se)
 	exp := `<stream:error><blah></blah></stream:error>`
 	assertEquals(t, exp, str)
 
-	se = &StreamError{Any: Generic{XMLName: xml.Name{Space:
+	se = &streamError{Any: Generic{XMLName: xml.Name{Space:
 				nsStreams, Local: "foo"}}, Text:
 		&errText{Lang: "ru", Text: "Пошёл ты"}}
 	str = testWrite(se)
