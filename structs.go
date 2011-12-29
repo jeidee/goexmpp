@@ -52,11 +52,12 @@ type errText struct {
 }
 var _ xml.Marshaler = &errText{}
 
-// BUG(cjyar) Store this in Client and make it available to the app.
 type Features struct {
 	Starttls *starttls
 	Mechanisms mechs
 	Bind *Generic
+	Session *Generic
+	Any *Generic
 }
 
 type starttls struct {

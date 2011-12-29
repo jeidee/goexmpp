@@ -68,6 +68,11 @@ type Client struct {
 	// channel.
 	Out chan<- Stanza
 	xmlOut chan<- interface{}
+	// Features advertised by the remote. This will be updated
+	// asynchronously as new features are received throughout the
+	// connection process. It should not be updated once
+	// StartSession() returns.
+	Features *Features
 }
 var _ io.Closer = &Client{}
 

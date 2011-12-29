@@ -253,6 +253,7 @@ func (cl *Client) handleStreamError(se *streamError) {
 }
 
 func (cl *Client) handleFeatures(fe *Features) {
+	cl.Features = fe
 	if fe.Starttls != nil {
 		start := &starttls{XMLName: xml.Name{Space: nsTLS,
 			Local: "starttls"}}
@@ -297,6 +298,7 @@ func (cl *Client) handleTls(t *starttls) {
 	tcp.SetReadTimeout(0)
 
 	log.Println("TLS negotiation succeeded.")
+	cl.Features = nil
 
 	// Now re-send the initial handshake message to start the new
 	// session.
@@ -357,6 +359,7 @@ func (cl *Client) handleSasl(srv *auth) {
 		log.Println("SASL authentication failed")
 	case "success":
 		log.Println("SASL authentication succeeded")
+		cl.Features = nil
 		ss := &stream{To: cl.Jid.Domain, Version: Version}
 		cl.xmlOut <- ss
 	}
