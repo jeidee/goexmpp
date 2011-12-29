@@ -497,7 +497,7 @@ func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 // Send a request to bind a resource. RFC 3920, section 7.
 func (cl *Client) bind(bind *Generic) {
 	res := cl.Jid.Resource
-	msg := &Iq{Type: "set", Id: cl.NextId(), Any:
+	msg := &Iq{Type: "set", Id: <- cl.Id, Any:
 		&Generic{XMLName: xml.Name{Space: nsBind, Local:
 					"bind"}}}
 	if res != "" {

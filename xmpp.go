@@ -57,6 +57,9 @@ type Client struct {
 	nextId int64
 	handlers chan *stanzaHandler
 	inputControl chan int
+	// This channel may be used as a convenient way to generate a
+	// unique id for an iq, message, or presence stanza.
+	Id <-chan string
 	// Incoming XMPP stanzas from the server will be published on
 	// this channel. Information which is only used by this
 	// library to set up the XMPP stream will not appear here.
@@ -108,6 +111,11 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	cl.socket = tcp
 	cl.handlers = make(chan *stanzaHandler, 1)
 	cl.inputControl = make(chan int)
+	idCh := make(chan string)
+	cl.Id = idCh
+
+	// Start the unique id generator.
+	go makeIds(idCh)
 
 	// Start the transport handler, initially unencrypted.
 	tlsr, tlsw := cl.startTransport()
@@ -219,16 +227,13 @@ func tryClose(xs ...interface{}) {
 	}
 }
 
-// This convenience function may be used to generate a unique id for
-// use in the Id fields of iq, message, and presence stanzas.
-// BUG(cjyar) This should be replaced with a goroutine that feeds a
-// channel.
-func (cl *Client) NextId() string {
-	cl.idMutex.Lock()
-	defer cl.idMutex.Unlock()
-	id := cl.nextId
-	cl.nextId++
-	return fmt.Sprintf("id_%d", id)
+func makeIds(ch chan<- string) {
+	id := int64(1)
+	for {
+		str := fmt.Sprintf("id_%d", id)
+		ch <- str
+		id++
+	}
 }
 
 // bindDone is called when we've finished resource binding (and all
@@ -244,7 +249,7 @@ func (cl *Client) bindDone() {
 // don't send initial presence. The initial presence can be a
 // newly-initialized Presence struct. See RFC 3921, Section 3.
 func (cl *Client) StartSession(pr *Presence) os.Error {
-	id := cl.NextId()
+	id := <- cl.Id
 	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Any:
 		&Generic{XMLName: xml.Name{Space: nsSession, Local:
 				"session"}}}
