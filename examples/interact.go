@@ -24,7 +24,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	c, err := xmpp.NewClient(&jid, *pw)
+	c, err := xmpp.NewClient(&jid, *pw, nil)
 	if err != nil {
 		log.Fatalf("NewClient(%v): %v", jid, err)
 	}

@@ -95,6 +95,11 @@ type Stanza interface {
 	XError() *Error
 	// A (non-error) nested element, if any.
 	XChild() *Generic
+	innerxml() string
+}
+
+type ExtendedStanza interface {
+	InnerMarshal(io.Writer) os.Error
 }
 
 // message stanza
@@ -104,6 +109,7 @@ type Message struct {
 	Id string `xml:"attr"`
 	Type string `xml:"attr"`
 	Lang string `xml:"attr"`
+	Innerxml string `xml:"innerxml"`
 	Error *Error
 	Subject *Generic
 	Body *Generic
@@ -112,6 +118,7 @@ type Message struct {
 }
 var _ xml.Marshaler = &Message{}
 var _ Stanza = &Message{}
+var _ ExtendedStanza = &Message{}
 
 // presence stanza
 type Presence struct {
@@ -120,6 +127,7 @@ type Presence struct {
 	Id string `xml:"attr"`
 	Type string `xml:"attr"`
 	Lang string `xml:"attr"`
+	Innerxml string `xml:"innerxml"`
 	Error *Error
 	Show *Generic
 	Status *Generic
@@ -128,6 +136,7 @@ type Presence struct {
 }
 var _ xml.Marshaler = &Presence{}
 var _ Stanza = &Presence{}
+var _ ExtendedStanza = &Presence{}
 
 // iq stanza
 type Iq struct {
@@ -136,29 +145,12 @@ type Iq struct {
 	Id string `xml:"attr"`
 	Type string `xml:"attr"`
 	Lang string `xml:"attr"`
+	Innerxml string `xml:"innerxml"`
 	Error *Error
 	Any *Generic
-	Query *RosterQuery
 }
 var _ xml.Marshaler = &Iq{}
 var _ Stanza = &Iq{}
-
-// Roster query/result
-type RosterQuery struct {
-	// Should always be query in the NsRoster namespace
-	XMLName xml.Name
-	Item []RosterItem
-}
-
-// See RFC 3921, Section 7.1.
-type RosterItem struct {
-	// Should always be "item"
-	XMLName xml.Name
-	Jid string `xml:"attr"`
-	Subscription string `xml:"attr"`
-	Name string `xml:"attr"`
-	Group []string
-}
 
 // Describes an XMPP stanza error. See RFC 3920, Section 9.3.
 type Error struct {
@@ -282,8 +274,6 @@ func (u *Generic) String() string {
 		u.XMLName.Local)
 }
 
-// BUG(cjyar) This is fragile. We should find a way to use go's native
-// XML marshaling.
 func marshalXML(st Stanza) ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<")
@@ -304,15 +294,22 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 		writeField(buf, "xml:lang", st.XLang())
 	}
 	buf.WriteString(">")
-	if st.XError() != nil {
-		bytes, _ := st.XError().MarshalXML()
-		buf.WriteString(string(bytes))
-	}
-	if st.XChild() != nil {
-		xml.Marshal(buf, st.XChild())
-	}
-	if iq, ok := st.(*Iq) ; ok && iq.Query != nil {
-		xml.Marshal(buf, iq.Query)
+	if ext, ok := st.(ExtendedStanza) ; ok {
+		if st.XError() != nil {
+			bytes, _ := st.XError().MarshalXML()
+			buf.WriteString(string(bytes))
+		}
+		err := ext.InnerMarshal(buf)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		inner := st.innerxml()
+		if inner == "" {
+			xml.Marshal(buf, st.XChild())
+		} else {
+			buf.WriteString(st.innerxml())
+		}
 	}
 	buf.WriteString("</")
 	buf.WriteString(st.XName())
@@ -369,8 +366,28 @@ func (m *Message) XChild() *Generic {
 	return m.Any
 }
 
+func (m *Message) innerxml() string {
+	return m.Innerxml
+}
+
 func (m *Message) MarshalXML() ([]byte, os.Error) {
 	return marshalXML(m)
+}
+
+func (m *Message) InnerMarshal(w io.Writer) os.Error {
+	err := xml.Marshal(w, m.Subject)
+	if err != nil {
+		return err
+	}
+	err = xml.Marshal(w, m.Body)
+	if err != nil {
+		return err
+	}
+	err = xml.Marshal(w, m.Thread)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *Presence) XName() string {
@@ -405,8 +422,28 @@ func (p *Presence) XChild() *Generic {
 	return p.Any
 }
 
+func (p *Presence) innerxml() string {
+	return p.Innerxml
+}
+
 func (p *Presence) MarshalXML() ([]byte, os.Error) {
 	return marshalXML(p)
+}
+
+func (p *Presence) InnerMarshal(w io.Writer) os.Error {
+	err := xml.Marshal(w, p.Show)
+	if err != nil {
+		return err
+	}
+	err = xml.Marshal(w, p.Status)
+	if err != nil {
+		return err
+	}
+	err = xml.Marshal(w, p.Priority)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (iq *Iq) XName() string {
@@ -439,6 +476,10 @@ func (iq *Iq) XError() *Error {
 
 func (iq *Iq) XChild() *Generic {
 	return iq.Any
+}
+
+func (iq *Iq) innerxml() string {
+	return iq.Innerxml
 }
 
 func (iq *Iq) MarshalXML() ([]byte, os.Error) {

@@ -83,7 +83,8 @@ var _ io.Closer = &Client{}
 // has completed. The negotiation will occur asynchronously, and any
 // send operation to Client.Out will block until negotiation (resource
 // binding) is complete.
-func NewClient(jid *JID, password string) (*Client, os.Error) {
+func NewClient(jid *JID, password string,
+	extStanza map[string] func(*xml.Name) ExtendedStanza) (*Client, os.Error) {
 	// Resolve the domain in the JID.
 	_, srvs, err := net.LookupSRV(clientSrv, "tcp", jid.Domain)
 	if err != nil {
@@ -120,6 +121,11 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	idCh := make(chan string)
 	cl.Id = idCh
 
+	if extStanza == nil {
+		extStanza = make(map[string] func(*xml.Name) ExtendedStanza)
+	}
+	extStanza[NsRoster] = rosterStanza
+
 	// Start the unique id generator.
 	go makeIds(idCh)
 
@@ -127,7 +133,7 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	tlsr, tlsw := cl.startTransport()
 
 	// Start the reader and writers that convert to and from XML.
-	xmlIn := startXmlReader(tlsr)
+	xmlIn := startXmlReader(tlsr, extStanza)
 	cl.xmlOut = startXmlWriter(tlsw)
 
 	// Start the XMPP stream handler which filters stream-level
@@ -158,9 +164,10 @@ func (cl *Client) startTransport() (io.Reader, io.Writer) {
 	return inr, outw
 }
 
-func startXmlReader(r io.Reader) <-chan interface{} {
+func startXmlReader(r io.Reader,
+	extStanza map[string] func(*xml.Name) ExtendedStanza) <-chan interface{} {
 	ch := make(chan interface{})
-	go readXml(r, ch)
+	go readXml(r, ch, extStanza)
 	return ch
 }
 
@@ -286,55 +293,4 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 		cl.Out <- pr
 	}
 	return nil
-}
-
-// Synchronously fetch this entity's roster from the server and cache
-// that information.
-func (cl *Client) fetchRoster() os.Error {
-	iq := &Iq{From: cl.Jid.String(), Id: <- cl.Id, Type: "get",
-		Query: &RosterQuery{XMLName: xml.Name{Local: "query",
-			Space: NsRoster}}}
-	ch := make(chan os.Error)
-	f := func(st Stanza) bool {
-		iq, ok := st.(*Iq)
-		if !ok {
-			ch <- os.NewError(fmt.Sprintf(
-				"Roster query result not iq: %v", st))
-			return false
-		}
-		if iq.Type == "error" {
-			ch <- iq.Error
-			return false
-		}
-		q := iq.Query
-		if q == nil {
-			ch <- os.NewError(fmt.Sprintf(
-				"Roster query result nil query: %v",
-				iq))
-			return false
-		}
-		cl.roster = make(map[string] *RosterItem, len(q.Item))
-		for _, item := range(q.Item) {
-			cl.roster[item.Jid] = &item
-		}
-		ch <- nil
-		return false
-	}
-	cl.HandleStanza(iq.Id, f)
-	cl.Out <- iq
-	// Wait for f to complete.
-	return <- ch
-}
-
-// BUG(cjyar) The roster isn't actually updated when things change.
-
-// Returns the current roster of other entities which this one has a
-// relationship with. Changes to the roster will be signaled by an
-// appropriate Iq appearing on Client.In. See RFC 3921, Section 7.4.
-func (cl *Client) Roster() map[string] *RosterItem {
-	r := make(map[string] *RosterItem)
-	for key, val := range(cl.roster) {
-		r[key] = val
-	}
-	return r
 }

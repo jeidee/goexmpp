@@ -12,6 +12,7 @@ package xmpp
 
 import (
 	"big"
+	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"crypto/tls"
@@ -80,7 +81,8 @@ func (cl *Client) writeTransport(r io.Reader) {
 	}
 }
 
-func readXml(r io.Reader, ch chan<- interface{}) {
+func readXml(r io.Reader, ch chan<- interface{},
+	extStanza map[string] func(*xml.Name) ExtendedStanza) {
 	if debug {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
@@ -144,9 +146,26 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 			break
 		}
 
-		// BUG(cjyar) If it's a Stanza, use reflection to
-		// search for any Generic elements and fill in
-		// their attributes.
+		// If it's a Stanza, we check its "Any" element for a
+		// namespace that's registered with one of our
+		// extensions. If so, we need to re-unmarshal into an
+		// object of the correct type.
+		if st, ok := obj.(Stanza) ; ok && st.XChild() != nil {
+			name := st.XChild().XMLName
+			ns := name.Space
+			con := extStanza[ns]
+			if con != nil {
+				obj = con(&name)
+				xmlStr, _ := marshalXML(st)
+				r := bytes.NewBuffer(xmlStr)
+				err = xml.Unmarshal(r, &obj)
+				if err != nil {
+					log.Printf("ext unmarshal: %v",
+						err)
+					break
+				}
+			}
+		}
 
 		// Put it on the channel.
 		ch <- obj

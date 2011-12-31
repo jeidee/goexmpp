@@ -7,6 +7,7 @@ include $(GOROOT)/src/Make.inc
 TARG=cjyar/xmpp
 GOFILES=\
 	xmpp.go \
+	roster.go \
 	stream.go \
 	structs.go \
 
