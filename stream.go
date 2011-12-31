@@ -217,8 +217,6 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	}
 }
 
-// BUG(cjyar) Allow extensions to specify extended structs with
-// corresponding namespaces via "func(xml.Name) Stanza".
 // BUG(cjyar) Allow extensions to provide filters in the form of "in
 // chan<- Stanza, out <-chan Stanza".
 func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
@@ -556,6 +554,7 @@ func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 }
 
 // BUG(cjyar) This should use iq.nested rather than iq.generic.
+
 // Send a request to bind a resource. RFC 3920, section 7.
 func (cl *Client) bind(bind *Generic) {
 	res := cl.Jid.Resource

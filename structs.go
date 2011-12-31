@@ -76,6 +76,8 @@ type auth struct {
 	Any *Generic
 }
 
+// BUG(cjyar) Change XTo() to GetTo(), etc.
+
 // One of the three core XMPP stanza types: iq, message, presence. See
 // RFC3920, section 9.
 type Stanza interface {
@@ -242,6 +244,9 @@ func (s *streamError) MarshalXML() ([]byte, os.Error) {
 	return buf.Bytes(), nil
 }
 
+// BUG(cjyar) We can probably eliminate this if we use an
+// appropriately-tagged XMLName field.
+
 func (e *errText) MarshalXML() ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<text")
@@ -308,6 +313,8 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 	return buf.Bytes(), nil
 }
 
+// BUG(cjyar) We can probably eliminate this if we add an XMLName
+// field with an appropriate tag.
 func (er *Error) MarshalXML() ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<error")
