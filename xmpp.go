@@ -26,12 +26,12 @@ const (
 
 	// BUG(cjyar) These should be public.
 	// Various XML namespaces.
-	nsStreams = "urn:ietf:params:xml:ns:xmpp-streams"
-	nsStream = "http://etherx.jabber.org/streams"
-	nsTLS = "urn:ietf:params:xml:ns:xmpp-tls"
-	nsSASL = "urn:ietf:params:xml:ns:xmpp-sasl"
-	nsBind = "urn:ietf:params:xml:ns:xmpp-bind"
-	nsSession = "urn:ietf:params:xml:ns:xmpp-session"
+	NsStreams = "urn:ietf:params:xml:ns:xmpp-streams"
+	NsStream = "http://etherx.jabber.org/streams"
+	NsTLS = "urn:ietf:params:xml:ns:xmpp-tls"
+	NsSASL = "urn:ietf:params:xml:ns:xmpp-sasl"
+	NsBind = "urn:ietf:params:xml:ns:xmpp-bind"
+	NsSession = "urn:ietf:params:xml:ns:xmpp-session"
 	NsRoster = "jabber:iq:roster"
 
 	// DNS SRV names
@@ -257,7 +257,7 @@ func (cl *Client) bindDone() {
 func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 	id := <- cl.Id
 	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Any:
-		&Generic{XMLName: xml.Name{Space: nsSession, Local:
+		&Generic{XMLName: xml.Name{Space: NsSession, Local:
 				"session"}}}
 	ch := make(chan os.Error)
 	f := func(st Stanza) bool {

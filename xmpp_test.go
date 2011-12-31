@@ -29,7 +29,7 @@ func TestReadError(t *testing.T) {
 	}
 
 	r = strings.NewReader(`<stream:error><bad-foo/>` +
-		`<text xml:lang="en" xmlns="` + nsStreams +
+		`<text xml:lang="en" xmlns="` + NsStreams +
 		`">Error text</text></stream:error>`)
 	ch = make(chan interface{})
 	go readXml(r, ch)
@@ -47,7 +47,7 @@ func TestReadError(t *testing.T) {
 func TestReadStream(t *testing.T) {
 	r := strings.NewReader(`<stream:stream to="foo.com" ` +
 		`from="bar.org" id="42"` +
-		`xmlns="jabber:client" xmlns:stream="` + nsStream +
+		`xmlns="jabber:client" xmlns:stream="` + NsStream +
 		`" version="1.0">`)
 	ch := make(chan interface{})
 	go readXml(r, ch)
@@ -85,11 +85,11 @@ func TestWriteError(t *testing.T) {
 	assertEquals(t, exp, str)
 
 	se = &streamError{Any: Generic{XMLName: xml.Name{Space:
-				nsStreams, Local: "foo"}}, Text:
+				NsStreams, Local: "foo"}}, Text:
 		&errText{Lang: "ru", Text: "Пошёл ты"}}
 	str = testWrite(se)
-	exp = `<stream:error><foo xmlns="` + nsStreams +
-		`"></foo><text xmlns="` + nsStreams +
+	exp = `<stream:error><foo xmlns="` + NsStreams +
+		`"></foo><text xmlns="` + NsStreams +
 		`" xml:lang="ru">Пошёл ты</text></stream:error>`
 	assertEquals(t, exp, str)
 }
@@ -99,7 +99,7 @@ func TestWriteStream(t *testing.T) {
 		"en", Version: "1.0"}
 	str := testWrite(ss)
 	exp := `<stream:stream xmlns="jabber:client"` +
-		` xmlns:stream="` + nsStream + `" to="foo.org"` +
+		` xmlns:stream="` + NsStream + `" to="foo.org"` +
 		` from="bar.com" id="42" xml:lang="en" version="1.0">`
 	assertEquals(t, exp, str)
 }

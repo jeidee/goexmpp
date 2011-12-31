@@ -52,40 +52,40 @@ func assertMarshal(t *testing.T, expected string, marshal interface{}) {
 func TestStreamMarshal(t *testing.T) {
 	s := &stream{To: "bob"}
 	exp := `<stream:stream xmlns="jabber:client"` +
-		` xmlns:stream="` + nsStream + `" to="bob">`
+		` xmlns:stream="` + NsStream + `" to="bob">`
 	assertMarshal(t, exp, s)
 
 	s = &stream{To: "bob", From: "alice", Id: "#3", Version: "5.3"}
 	exp = `<stream:stream xmlns="jabber:client"` +
-		` xmlns:stream="` + nsStream + `" to="bob" from="alice"` +
+		` xmlns:stream="` + NsStream + `" to="bob" from="alice"` +
 		` id="#3" version="5.3">`
 	assertMarshal(t, exp, s)
 
 	s = &stream{Lang: "en_US"}
 	exp = `<stream:stream xmlns="jabber:client"` +
-		` xmlns:stream="` + nsStream + `" xml:lang="en_US">`
+		` xmlns:stream="` + NsStream + `" xml:lang="en_US">`
 	assertMarshal(t, exp, s)
 }
 
 func TestStreamErrorMarshal(t *testing.T) {
-	name := xml.Name{Space: nsStreams, Local: "ack"}
+	name := xml.Name{Space: NsStreams, Local: "ack"}
 	e := &streamError{Any: Generic{XMLName: name}}
-	exp := `<stream:error><ack xmlns="` + nsStreams +
+	exp := `<stream:error><ack xmlns="` + NsStreams +
 		`"></ack></stream:error>`;
 	assertMarshal(t, exp, e)
 
 	txt := errText{Lang: "pt", Text: "things happen"}
 	e = &streamError{Any: Generic{XMLName: name}, Text: &txt}
-	exp = `<stream:error><ack xmlns="` + nsStreams +
-		`"></ack><text xmlns="` + nsStreams +
+	exp = `<stream:error><ack xmlns="` + NsStreams +
+		`"></ack><text xmlns="` + NsStreams +
 		`" xml:lang="pt">things happen</text></stream:error>`
 	assertMarshal(t, exp, e)
 }
 
 func TestIqMarshal(t *testing.T) {
 	iq := &Iq{Type: "set", Id: "3", Any: &Generic{XMLName:
-			xml.Name{Space: nsBind, Local: "bind"}}}
-	exp := `<iq id="3" type="set"><bind xmlns="` + nsBind +
+			xml.Name{Space: NsBind, Local: "bind"}}}
+	exp := `<iq id="3" type="set"><bind xmlns="` + NsBind +
 		`"></bind></iq>`
 	assertMarshal(t, exp, iq)
 }

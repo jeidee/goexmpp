@@ -107,7 +107,7 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 		// Allocate the appropriate structure for this token.
 		var obj interface{}
 		switch se.Name.Space + " " + se.Name.Local {
-		case nsStream + " stream":
+		case NsStream + " stream":
 			st, err := parseStream(se)
 			if err != nil {
 				log.Printf("unmarshal stream: %v",
@@ -116,14 +116,14 @@ func readXml(r io.Reader, ch chan<- interface{}) {
 			}
 			ch <- st
 			continue
-		case "stream error", nsStream + " error":
+		case "stream error", NsStream + " error":
 			obj = &streamError{}
-		case nsStream + " features":
+		case NsStream + " features":
 			obj = &Features{}
-		case nsTLS + " proceed", nsTLS + " failure":
+		case NsTLS + " proceed", NsTLS + " failure":
 			obj = &starttls{}
-		case nsSASL + " challenge", nsSASL + " failure",
-			nsSASL + " success":
+		case NsSASL + " challenge", NsSASL + " failure",
+			NsSASL + " success":
 			obj = &auth{}
 		case "jabber:client iq":
 			obj = &Iq{}
@@ -255,7 +255,7 @@ func (cl *Client) handleStreamError(se *streamError) {
 func (cl *Client) handleFeatures(fe *Features) {
 	cl.Features = fe
 	if fe.Starttls != nil {
-		start := &starttls{XMLName: xml.Name{Space: nsTLS,
+		start := &starttls{XMLName: xml.Name{Space: NsTLS,
 			Local: "starttls"}}
 		cl.xmlOut <- start
 		return
@@ -332,7 +332,7 @@ func (cl *Client) chooseSasl(fe *Features) {
 	}
 
 	if digestMd5 {
-		auth := &auth{XMLName: xml.Name{Space: nsSASL, Local:
+		auth := &auth{XMLName: xml.Name{Space: NsSASL, Local:
 				"auth"}, Mechanism: "DIGEST-MD5"}
 		cl.xmlOut <- auth
 	}
@@ -434,7 +434,7 @@ func (cl *Client) saslDigest1(srvMap map[string] string) {
 	// Encode the map and send it.
 	clStr := packSasl(clMap)
 	b64 := base64.StdEncoding
-	clObj := &auth{XMLName: xml.Name{Space: nsSASL, Local:
+	clObj := &auth{XMLName: xml.Name{Space: NsSASL, Local:
 			"response"}, Chardata:
 		b64.EncodeToString([]byte(clStr))}
 	cl.xmlOut <- clObj
@@ -442,13 +442,13 @@ func (cl *Client) saslDigest1(srvMap map[string] string) {
 
 func (cl *Client) saslDigest2(srvMap map[string] string) {
 	if cl.saslExpected == srvMap["rspauth"] {
-		clObj := &auth{XMLName: xml.Name{Space: nsSASL, Local:
+		clObj := &auth{XMLName: xml.Name{Space: NsSASL, Local:
 				"response"}}
 		cl.xmlOut <- clObj
 	} else {
-		clObj := &auth{XMLName: xml.Name{Space: nsSASL, Local:
+		clObj := &auth{XMLName: xml.Name{Space: NsSASL, Local:
 				"failure"}, Any:
-			&Generic{XMLName: xml.Name{Space: nsSASL,
+			&Generic{XMLName: xml.Name{Space: NsSASL,
 				Local: "abort"}}}
 		cl.xmlOut <- clObj
 	}
@@ -508,7 +508,7 @@ func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 func (cl *Client) bind(bind *Generic) {
 	res := cl.Jid.Resource
 	msg := &Iq{Type: "set", Id: <- cl.Id, Any:
-		&Generic{XMLName: xml.Name{Space: nsBind, Local:
+		&Generic{XMLName: xml.Name{Space: NsBind, Local:
 					"bind"}}}
 	if res != "" {
 		msg.Any.Any = &Generic{XMLName: xml.Name{Local:

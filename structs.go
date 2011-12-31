@@ -205,7 +205,7 @@ func (s *stream) MarshalXML() ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<stream:stream")
 	writeField(buf, "xmlns", "jabber:client")
-	writeField(buf, "xmlns:stream", nsStream)
+	writeField(buf, "xmlns:stream", NsStream)
 	writeField(buf, "to", s.To)
 	writeField(buf, "from", s.From)
 	writeField(buf, "id", s.Id)
@@ -254,7 +254,7 @@ func (s *streamError) MarshalXML() ([]byte, os.Error) {
 func (e *errText) MarshalXML() ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<text")
-	writeField(buf, "xmlns", nsStreams)
+	writeField(buf, "xmlns", NsStreams)
 	writeField(buf, "xml:lang", e.Lang)
 	buf.WriteString(">")
 	xml.Escape(buf, []byte(e.Text))
