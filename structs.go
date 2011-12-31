@@ -99,6 +99,7 @@ type Stanza interface {
 }
 
 type ExtendedStanza interface {
+	Stanza
 	InnerMarshal(io.Writer) os.Error
 }
 

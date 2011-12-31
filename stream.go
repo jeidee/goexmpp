@@ -158,7 +158,7 @@ func readXml(r io.Reader, ch chan<- interface{},
 				obj = con(&name)
 				xmlStr, _ := marshalXML(st)
 				r := bytes.NewBuffer(xmlStr)
-				err = xml.Unmarshal(r, &obj)
+				err = xml.Unmarshal(r, obj)
 				if err != nil {
 					log.Printf("ext unmarshal: %v",
 						err)

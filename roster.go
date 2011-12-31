@@ -36,6 +36,10 @@ type RosterItem struct {
 	Group []string
 }
 
+func (riq *RosterIq) MarshalXML() ([]byte, os.Error) {
+	return marshalXML(riq)
+}
+
 func (riq *RosterIq) InnerMarshal(w io.Writer) os.Error {
 	return xml.Marshal(w, riq.Query)
 }
