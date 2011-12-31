@@ -170,6 +170,10 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	}
 }
 
+// BUG(cjyar) Allow extensions to specify extended structs with
+// corresponding namespaces via "func(xml.Name) Stanza".
+// BUG(cjyar) Allow extensions to provide filters in the form of "in
+// chan<- Stanza, out <-chan Stanza".
 func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 	defer tryClose(srvIn, cliOut)
 

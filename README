@@ -1,0 +1,7 @@
+Extensible library for handling the XMPP protocol (RFC 3920). This
+code is inspired by, but not derived from,
+https://github.com/mattn/go-xmpp/.
+
+The core of the protocol is handled by xmpp.go, structs.go, and
+stream.go. Everything else is an extension, though some of the
+provided "extensions" are mandatory pieces of the protocol.
