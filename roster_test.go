@@ -14,9 +14,7 @@ import (
 // This is mostly just tests of the roster data structures.
 
 func TestRosterIqMarshal(t *testing.T) {
-	iq := &Iq{From: "from", Lang: "en", Nested:
-		RosterQuery{XMLName: xml.Name{Space: NsRoster, Local:
-				"query"}, Item: []RosterItem{}}}
+	iq := &Iq{From: "from", Lang: "en", Nested: RosterQuery{}}
 	exp := `<iq from="from" xml:lang="en"><query xmlns="` +
 		NsRoster + `"></query></iq>`
 	assertMarshal(t, exp, iq)

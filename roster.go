@@ -14,15 +14,13 @@ import (
 
 // Roster query/result
 type RosterQuery struct {
-	// Should always be NsRoster, "query"
-	XMLName xml.Name
+	XMLName xml.Name `xml:"jabber:iq:roster query"`
 	Item []RosterItem
 }
 
 // See RFC 3921, Section 7.1.
 type RosterItem struct {
-	// Should always be "item"
-	XMLName xml.Name
+	XMLName xml.Name `xml:"item"`
 	Jid string `xml:"attr"`
 	Subscription string `xml:"attr"`
 	Name string `xml:"attr"`
@@ -38,8 +36,7 @@ func newRosterQuery(name *xml.Name) interface{} {
 // that information.
 func (cl *Client) fetchRoster() os.Error {
 	iq := &Iq{From: cl.Jid.String(), Id: <- cl.Id, Type: "get",
-		Nested: RosterQuery{XMLName: xml.Name{Local: "query",
-			Space: NsRoster}}}
+		Nested: RosterQuery{}}
 	ch := make(chan os.Error)
 	f := func(st Stanza) bool {
 		if iq.Type == "error" {
