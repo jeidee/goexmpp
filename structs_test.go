@@ -106,11 +106,11 @@ func TestParseStanza(t *testing.T) {
 	if st.XError() != nil {
 		t.Errorf("iq: error %v", st.XError())
 	}
-	if st.XChild() == nil {
+	if st.generic() == nil {
 		t.Errorf("iq: nil child")
 	}
-	assertEquals(t, "foo", st.XChild().XMLName.Local)
-	assertEquals(t, "text", st.XChild().Chardata)
+	assertEquals(t, "foo", st.generic().XMLName.Local)
+	assertEquals(t, "text", st.generic().Chardata)
 
 	str = `<message to="alice" from="bob"/>`
 	st, err = ParseStanza(str)
@@ -125,8 +125,8 @@ func TestParseStanza(t *testing.T) {
 	if st.XError() != nil {
 		t.Errorf("message: error %v", st.XError())
 	}
-	if st.XChild() != nil {
-		t.Errorf("message: child %v", st.XChild())
+	if st.generic() != nil {
+		t.Errorf("message: child %v", st.generic())
 	}
 
 	str = `<presence/>`

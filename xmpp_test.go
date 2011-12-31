@@ -16,7 +16,7 @@ import (
 func TestReadError(t *testing.T) {
 	r := strings.NewReader(`<stream:error><bad-foo/></stream:error>`)
 	ch := make(chan interface{})
-	go readXml(r, ch, make(map[string] func(*xml.Name) ExtendedStanza))
+	go readXml(r, ch, make(map[string] func(*xml.Name) interface{}))
 	x := <- ch
 	se, ok := x.(*streamError)
 	if !ok {
@@ -32,7 +32,7 @@ func TestReadError(t *testing.T) {
 		`<text xml:lang="en" xmlns="` + NsStreams +
 		`">Error text</text></stream:error>`)
 	ch = make(chan interface{})
-	go readXml(r, ch, make(map[string] func(*xml.Name) ExtendedStanza))
+	go readXml(r, ch, make(map[string] func(*xml.Name) interface{}))
 	x = <- ch
 	se, ok = x.(*streamError)
 	if !ok {
@@ -50,7 +50,7 @@ func TestReadStream(t *testing.T) {
 		`xmlns="jabber:client" xmlns:stream="` + NsStream +
 		`" version="1.0">`)
 	ch := make(chan interface{})
-	go readXml(r, ch, make(map[string] func(*xml.Name) ExtendedStanza))
+	go readXml(r, ch, make(map[string] func(*xml.Name) interface{}))
 	x := <- ch
 	ss, ok := x.(*stream)
 	if !ok {

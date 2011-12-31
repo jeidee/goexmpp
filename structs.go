@@ -94,13 +94,10 @@ type Stanza interface {
 	// A nested error element, if any.
 	XError() *Error
 	// A (non-error) nested element, if any.
-	XChild() *Generic
+	XNested() interface{}
+	setNested(interface{})
+	generic() *Generic
 	innerxml() string
-}
-
-type ExtendedStanza interface {
-	Stanza
-	InnerMarshal(io.Writer) os.Error
 }
 
 // message stanza
@@ -116,10 +113,10 @@ type Message struct {
 	Body *Generic
 	Thread *Generic
 	Any *Generic
+	Nested interface{}
 }
 var _ xml.Marshaler = &Message{}
 var _ Stanza = &Message{}
-var _ ExtendedStanza = &Message{}
 
 // presence stanza
 type Presence struct {
@@ -134,10 +131,10 @@ type Presence struct {
 	Status *Generic
 	Priority *Generic
 	Any *Generic
+	Nested interface{}
 }
 var _ xml.Marshaler = &Presence{}
 var _ Stanza = &Presence{}
-var _ ExtendedStanza = &Presence{}
 
 // iq stanza
 type Iq struct {
@@ -149,6 +146,7 @@ type Iq struct {
 	Innerxml string `xml:"innerxml"`
 	Error *Error
 	Any *Generic
+	Nested interface{}
 }
 var _ xml.Marshaler = &Iq{}
 var _ Stanza = &Iq{}
@@ -295,23 +293,15 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 		writeField(buf, "xml:lang", st.XLang())
 	}
 	buf.WriteString(">")
-	if ext, ok := st.(ExtendedStanza) ; ok {
-		if st.XError() != nil {
-			bytes, _ := st.XError().MarshalXML()
-			buf.WriteString(string(bytes))
-		}
-		err := ext.InnerMarshal(buf)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		inner := st.innerxml()
-		if inner == "" {
-			xml.Marshal(buf, st.XChild())
-		} else {
-			buf.WriteString(st.innerxml())
-		}
+
+	if st.XNested() != nil {
+		xml.Marshal(buf, st.XNested())
+	} else if st.generic() != nil {
+		xml.Marshal(buf, st.generic())
+	} else if st.innerxml() != "" {
+		buf.WriteString(st.innerxml())
 	}
+
 	buf.WriteString("</")
 	buf.WriteString(st.XName())
 	buf.WriteString(">")
@@ -363,7 +353,15 @@ func (m *Message) XError() *Error {
 	return m.Error
 }
 
-func (m *Message) XChild() *Generic {
+func (m *Message) XNested() interface{} {
+	return m.Nested
+}
+
+func (m *Message) setNested(n interface{}) {
+	m.Nested = n
+}
+
+func (m *Message) generic() *Generic {
 	return m.Any
 }
 
@@ -419,7 +417,15 @@ func (p *Presence) XError() *Error {
 	return p.Error
 }
 
-func (p *Presence) XChild() *Generic {
+func (p *Presence) XNested() interface{} {
+	return p.Nested
+}
+
+func (p *Presence) setNested(n interface{}) {
+	p.Nested = n
+}
+
+func (p *Presence) generic() *Generic {
 	return p.Any
 }
 
@@ -475,7 +481,15 @@ func (iq *Iq) XError() *Error {
 	return iq.Error
 }
 
-func (iq *Iq) XChild() *Generic {
+func (iq *Iq) XNested() interface{} {
+	return iq.Nested
+}
+
+func (iq *Iq) setNested(n interface{}) {
+	iq.Nested = n
+}
+
+func (iq *Iq) generic() *Generic {
 	return iq.Any
 }
 

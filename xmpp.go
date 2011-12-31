@@ -84,7 +84,7 @@ var _ io.Closer = &Client{}
 // send operation to Client.Out will block until negotiation (resource
 // binding) is complete.
 func NewClient(jid *JID, password string,
-	extStanza map[string] func(*xml.Name) ExtendedStanza) (*Client, os.Error) {
+	extStanza map[string] func(*xml.Name) interface{}) (*Client, os.Error) {
 	// Resolve the domain in the JID.
 	_, srvs, err := net.LookupSRV(clientSrv, "tcp", jid.Domain)
 	if err != nil {
@@ -122,9 +122,9 @@ func NewClient(jid *JID, password string,
 	cl.Id = idCh
 
 	if extStanza == nil {
-		extStanza = make(map[string] func(*xml.Name) ExtendedStanza)
+		extStanza = make(map[string] func(*xml.Name) interface{})
 	}
-	extStanza[NsRoster] = rosterStanza
+	extStanza[NsRoster] = newRosterQuery
 
 	// Start the unique id generator.
 	go makeIds(idCh)
@@ -165,7 +165,7 @@ func (cl *Client) startTransport() (io.Reader, io.Writer) {
 }
 
 func startXmlReader(r io.Reader,
-	extStanza map[string] func(*xml.Name) ExtendedStanza) <-chan interface{} {
+	extStanza map[string] func(*xml.Name) interface{}) <-chan interface{} {
 	ch := make(chan interface{})
 	go readXml(r, ch, extStanza)
 	return ch

@@ -5,6 +5,8 @@
 package xmpp
 
 import (
+	"reflect"
+	"strings"
 	"testing"
 	"xml"
 )
@@ -12,14 +14,39 @@ import (
 // This is mostly just tests of the roster data structures.
 
 func TestRosterIqMarshal(t *testing.T) {
-	iq := &RosterIq{Iq: Iq{From: "from", Lang: "en"}, Query:
+	iq := &Iq{From: "from", Lang: "en", Nested:
 		RosterQuery{XMLName: xml.Name{Space: NsRoster, Local:
 				"query"}, Item: []RosterItem{}}}
-	var s Stanza = iq
-	if _, ok := s.(ExtendedStanza) ; !ok {
-		t.Errorf("Not an ExtendedStanza")
-	}
 	exp := `<iq from="from" xml:lang="en"><query xmlns="` +
 		NsRoster + `"></query></iq>`
 	assertMarshal(t, exp, iq)
+}
+
+func TestRosterIqUnmarshal(t *testing.T) {
+	str := `<iq from="from" xml:lang="en"><query xmlns="` +
+		NsRoster + `"><item jid="a@b.c"/></query></iq>`
+	r := strings.NewReader(str)
+	var st Stanza = &Iq{}
+	xml.Unmarshal(r, st)
+	err := parseExtended(st, newRosterQuery)
+	if err != nil {
+		t.Fatalf("parseExtended: %v", err)
+	}
+	assertEquals(t, "iq", st.XName())
+	assertEquals(t, "from", st.XFrom())
+	assertEquals(t, "en", st.XLang())
+	nested := st.XNested()
+	if nested == nil {
+		t.Fatalf("nested nil")
+	}
+	rq, ok := nested.(*RosterQuery)
+	if !ok {
+		t.Fatalf("nested not RosterQuery: %v",
+			reflect.TypeOf(nested))
+	}
+	if len(rq.Item) != 1 {
+		t.Fatalf("Wrong # items: %v", rq.Item)
+	}
+	item := rq.Item[0]
+	assertEquals(t, "a@b.c", item.Jid)
 }

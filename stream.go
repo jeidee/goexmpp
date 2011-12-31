@@ -12,7 +12,6 @@ package xmpp
 
 import (
 	"big"
-	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"crypto/tls"
@@ -82,7 +81,7 @@ func (cl *Client) writeTransport(r io.Reader) {
 }
 
 func readXml(r io.Reader, ch chan<- interface{},
-	extStanza map[string] func(*xml.Name) ExtendedStanza) {
+	extStanza map[string] func(*xml.Name) interface{}) {
 	if debug {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
@@ -150,15 +149,12 @@ func readXml(r io.Reader, ch chan<- interface{},
 		// namespace that's registered with one of our
 		// extensions. If so, we need to re-unmarshal into an
 		// object of the correct type.
-		if st, ok := obj.(Stanza) ; ok && st.XChild() != nil {
-			name := st.XChild().XMLName
+		if st, ok := obj.(Stanza) ; ok && st.generic() != nil {
+			name := st.generic().XMLName
 			ns := name.Space
 			con := extStanza[ns]
 			if con != nil {
-				obj = con(&name)
-				xmlStr, _ := marshalXML(st)
-				r := bytes.NewBuffer(xmlStr)
-				err = xml.Unmarshal(r, obj)
+				err = parseExtended(st, con)
 				if err != nil {
 					log.Printf("ext unmarshal: %v",
 						err)
@@ -170,6 +166,38 @@ func readXml(r io.Reader, ch chan<- interface{},
 		// Put it on the channel.
 		ch <- obj
 	}
+}
+
+func parseExtended(st Stanza, con func(*xml.Name) interface{}) os.Error {
+	name := st.generic().XMLName
+	nested := con(&name)
+
+	// Now parse the stanza's innerxml to find the string that we
+	// can unmarshal this nested element from.
+	reader := strings.NewReader(st.innerxml())
+	p := xml.NewParser(reader)
+	var start *xml.StartElement
+	for {
+		t, err := p.Token()
+		if err != nil {
+			return err
+		}
+		if se, ok := t.(xml.StartElement) ; ok {
+			if se.Name.Space == name.Space {
+				start = &se
+				break
+			}
+		}
+	}
+
+	// Unmarshal the nested element and stuff it back into the
+	// stanza.
+	err := p.Unmarshal(nested, start)
+	if err != nil {
+		return err
+	}
+	st.setNested(nested)
+	return nil
 }
 
 func writeXml(w io.Writer, ch <-chan interface{}) {
@@ -527,6 +555,7 @@ func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 	return response
 }
 
+// BUG(cjyar) This should use iq.nested rather than iq.generic.
 // Send a request to bind a resource. RFC 3920, section 7.
 func (cl *Client) bind(bind *Generic) {
 	res := cl.Jid.Resource
@@ -542,7 +571,7 @@ func (cl *Client) bind(bind *Generic) {
 			log.Println("Resource binding failed")
 			return false
 		}
-		bind := st.XChild()
+		bind := st.generic()
 		if bind == nil {
 			log.Println("nil resource bind")
 			return false
