@@ -138,9 +138,27 @@ type Iq struct {
 	Lang string `xml:"attr"`
 	Error *Error
 	Any *Generic
+	Query *RosterQuery
 }
 var _ xml.Marshaler = &Iq{}
 var _ Stanza = &Iq{}
+
+// Roster query/result
+type RosterQuery struct {
+	// Should always be query in the NsRoster namespace
+	XMLName xml.Name
+	Item []RosterItem
+}
+
+// See RFC 3921, Section 7.1.
+type RosterItem struct {
+	// Should always be "item"
+	XMLName xml.Name
+	Jid string `xml:"attr"`
+	Subscription string `xml:"attr"`
+	Name string `xml:"attr"`
+	Group []string
+}
 
 // Describes an XMPP stanza error. See RFC 3920, Section 9.3.
 type Error struct {
@@ -264,6 +282,8 @@ func (u *Generic) String() string {
 		u.XMLName.Local)
 }
 
+// BUG(cjyar) This is fragile. We should find a way to use go's native
+// XML marshaling.
 func marshalXML(st Stanza) ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<")
@@ -290,6 +310,9 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 	}
 	if st.XChild() != nil {
 		xml.Marshal(buf, st.XChild())
+	}
+	if iq, ok := st.(*Iq) ; ok && iq.Query != nil {
+		xml.Marshal(buf, iq.Query)
 	}
 	buf.WriteString("</")
 	buf.WriteString(st.XName())

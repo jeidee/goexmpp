@@ -24,6 +24,7 @@ const (
 	// Version of RFC 3920 that we implement.
 	Version = "1.0"
 
+	// BUG(cjyar) These should be public.
 	// Various XML namespaces.
 	nsStreams = "urn:ietf:params:xml:ns:xmpp-streams"
 	nsStream = "http://etherx.jabber.org/streams"
@@ -31,6 +32,7 @@ const (
 	nsSASL = "urn:ietf:params:xml:ns:xmpp-sasl"
 	nsBind = "urn:ietf:params:xml:ns:xmpp-bind"
 	nsSession = "urn:ietf:params:xml:ns:xmpp-session"
+	NsRoster = "jabber:iq:roster"
 
 	// DNS SRV names
 	serverSrv = "xmpp-server"
@@ -53,8 +55,6 @@ type Client struct {
 	socketSync sync.WaitGroup
 	saslExpected string
 	authDone bool
-	idMutex sync.Mutex
-	nextId int64
 	handlers chan *stanzaHandler
 	inputControl chan int
 	// This channel may be used as a convenient way to generate a
@@ -73,6 +73,7 @@ type Client struct {
 	// connection process. It should not be updated once
 	// StartSession() returns.
 	Features *Features
+	roster map[string] *RosterItem
 }
 var _ io.Closer = &Client{}
 
@@ -114,7 +115,7 @@ func NewClient(jid *JID, password string) (*Client, os.Error) {
 	cl.password = password
 	cl.Jid = *jid
 	cl.socket = tcp
-	cl.handlers = make(chan *stanzaHandler, 1)
+	cl.handlers = make(chan *stanzaHandler, 100)
 	cl.inputControl = make(chan int)
 	idCh := make(chan string)
 	cl.Id = idCh
@@ -248,12 +249,12 @@ func (cl *Client) bindDone() {
 	cl.inputControl <- 1
 }
 
-// Start an XMPP session. This should typically be done immediately
-// after creating the new Client. Once the session has been
-// established, pr will be sent as an initial presence; nil means
-// don't send initial presence. The initial presence can be a
-// newly-initialized Presence struct. See RFC 3921, Section 3.
-func (cl *Client) StartSession(pr *Presence) os.Error {
+// Start an XMPP session. A typical XMPP client should call this
+// immediately after creating the Client in order to start the
+// session, retrieve the roster, and broadcast an initial
+// presence. The presence can be as simple as a newly-initialized
+// Presence struct.  See RFC 3921, Section 3.
+func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 	id := <- cl.Id
 	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Any:
 		&Generic{XMLName: xml.Name{Space: nsSession, Local:
@@ -265,14 +266,75 @@ func (cl *Client) StartSession(pr *Presence) os.Error {
 			ch <- st.XError()
 			return false
 		}
-		if pr != nil {
-			cl.Out <- pr
-		}
 		ch <- nil
 		return false
 	}
 	cl.HandleStanza(id, f)
 	cl.Out <- iq
+
 	// Now wait until the callback is called.
-	return <-ch
+	if err := <- ch ; err != nil {
+		return err
+	}
+	if getRoster {
+		err := cl.fetchRoster()
+		if err != nil {
+			return err
+		}
+	}
+	if pr != nil {
+		cl.Out <- pr
+	}
+	return nil
+}
+
+// Synchronously fetch this entity's roster from the server and cache
+// that information.
+func (cl *Client) fetchRoster() os.Error {
+	iq := &Iq{From: cl.Jid.String(), Id: <- cl.Id, Type: "get",
+		Query: &RosterQuery{XMLName: xml.Name{Local: "query",
+			Space: NsRoster}}}
+	ch := make(chan os.Error)
+	f := func(st Stanza) bool {
+		iq, ok := st.(*Iq)
+		if !ok {
+			ch <- os.NewError(fmt.Sprintf(
+				"Roster query result not iq: %v", st))
+			return false
+		}
+		if iq.Type == "error" {
+			ch <- iq.Error
+			return false
+		}
+		q := iq.Query
+		if q == nil {
+			ch <- os.NewError(fmt.Sprintf(
+				"Roster query result nil query: %v",
+				iq))
+			return false
+		}
+		cl.roster = make(map[string] *RosterItem, len(q.Item))
+		for _, item := range(q.Item) {
+			cl.roster[item.Jid] = &item
+		}
+		ch <- nil
+		return false
+	}
+	cl.HandleStanza(iq.Id, f)
+	cl.Out <- iq
+	// Wait for f to complete.
+	return <- ch
+}
+
+// BUG(cjyar) The roster isn't actually updated when things change.
+
+// Returns the current roster of other entities which this one has a
+// relationship with. Changes to the roster will be signaled by an
+// appropriate Iq appearing on Client.In. See RFC 3921, Section 7.4.
+func (cl *Client) Roster() map[string] *RosterItem {
+	r := make(map[string] *RosterItem)
+	for key, val := range(cl.roster) {
+		r[key] = val
+	}
+	return r
 }

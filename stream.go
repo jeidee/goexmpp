@@ -551,7 +551,9 @@ func (cl *Client) bind(bind *Generic) {
 // Register a callback to handle the next XMPP stanza (iq, message, or
 // presence) with a given id. The provided function will not be called
 // more than once. If it returns false, the stanza will not be made
-// available on the normal Client.In channel.
+// available on the normal Client.In channel. The stanza handler
+// must not read from that channel, as deliveries on it cannot proceed
+// until the handler returns true or false.
 func (cl *Client) HandleStanza(id string, f func(Stanza) bool) {
 	h := &stanzaHandler{id: id, f: f}
 	cl.handlers <- h

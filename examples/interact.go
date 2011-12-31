@@ -30,9 +30,14 @@ func main() {
 	}
 	defer c.Close()
 
-	err = c.StartSession(&xmpp.Presence{})
+	err = c.StartSession(true, &xmpp.Presence{})
 	if err != nil {
 		log.Fatalf("StartSession: %v", err)
+	}
+	roster := c.Roster()
+	fmt.Printf("%d roster entries:\n", len(roster))
+	for jid, entry := range(roster) {
+		fmt.Printf("%s: %v\n", jid, entry)
 	}
 
 	go func(ch <-chan xmpp.Stanza) {
