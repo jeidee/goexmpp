@@ -73,6 +73,8 @@ type Client struct {
 	// StartSession() returns.
 	Features *Features
 	roster map[string] *RosterItem
+	filterOut chan<- <-chan Stanza
+	filterIn <-chan <-chan Stanza
 }
 var _ io.Closer = &Client{}
 
@@ -138,8 +140,12 @@ func NewClient(jid *JID, password string,
 
 	// Start the XMPP stream handler which filters stream-level
 	// events and responds to them.
-	clIn := cl.startStreamReader(xmlIn, cl.xmlOut)
+	stIn := cl.startStreamReader(xmlIn, cl.xmlOut)
 	clOut := cl.startStreamWriter(cl.xmlOut)
+
+	// Start the manager for the filters that can modify what the
+	// app sees.
+	clIn := cl.startFilter(stIn)
 
 	// Initial handshake.
 	hsOut := &stream{To: jid.Domain, Version: Version}
@@ -187,6 +193,14 @@ func (cl *Client) startStreamWriter(xmlOut chan<- interface{}) chan<- Stanza {
 	ch := make(chan Stanza)
 	go writeStream(xmlOut, ch, cl.inputControl)
 	return ch
+}
+
+func (cl *Client) startFilter(srvIn <-chan Stanza) <-chan Stanza {
+	cliOut := make(chan Stanza)
+	filterOut := make(chan (<-chan Stanza))
+	filterIn := make(chan (<-chan Stanza))
+	go filter(srvIn, cliOut, filterOut, filterIn)
+	return cliOut
 }
 
 func tee(r io.Reader, w io.Writer, prefix string) {
@@ -293,4 +307,14 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 		cl.Out <- pr
 	}
 	return nil
+}
+
+// AddFilter adds a new filter to the top of the stack through which
+// incoming stanzas travel on their way up to the client. The new
+// filter's output channel is given to this function, and it returns a
+// new input channel which the filter should read from. When its input
+// channel closes, the filter should close its output channel.
+func (cl *Client) AddFilter(out <-chan Stanza) <-chan Stanza {
+	cl.filterOut <- out
+	return <- cl.filterIn
 }

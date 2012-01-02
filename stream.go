@@ -293,6 +293,55 @@ func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
 	}
 }
 
+// Stanzas from the remote go up through a stack of filters to the
+// app. This function manages the filters.
+func filter(srvIn2 <-chan Stanza, cliOut2 chan<- Stanza,
+	filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza) {
+	defer close(cliOut2)
+	var srvIn1, topFilterOut1, topFilterOut2 <-chan Stanza
+	var cliOut1, botFilterIn1, botFilterIn2 chan<- Stanza
+	ch := make(chan Stanza, 1)
+	topFilterOut2 = ch
+	botFilterIn2 = ch
+	topFilterOut1 = topFilterOut2
+	srvIn1 = srvIn2
+	var botItem Stanza
+	var topItem Stanza
+	var ok bool
+	for {
+		select {
+		case newFilterOut := <- filterOut:
+			filterIn <- topFilterOut2
+			topFilterOut2 = newFilterOut
+			if topFilterOut1 != nil {
+				topFilterOut1 = topFilterOut2
+			}
+
+		case topItem, ok = <-topFilterOut1:
+			if !ok {
+				break
+			}
+			topFilterOut1 = nil
+			cliOut1 = cliOut2
+		case cliOut1 <- topItem:
+			topFilterOut1 = topFilterOut2
+			cliOut1 = nil
+
+		case botItem, ok = <-srvIn1:
+			if !ok {
+				close(botFilterIn2)
+				srvIn1 = nil
+				continue
+			}
+			srvIn1 = nil
+			botFilterIn1 = botFilterIn2
+		case botFilterIn1 <- botItem:
+			srvIn1 = srvIn2
+			botFilterIn1 = nil
+		}
+	}
+}
+
 func handleStream(ss *stream) {
 }
 
