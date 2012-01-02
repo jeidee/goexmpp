@@ -78,25 +78,11 @@ func (cl *Client) Roster() map[string] *RosterItem {
 func (cl *Client) startRosterFilter() {
 	out := make(chan Stanza)
 	in := cl.AddFilter(out)
-	go func(inSave <-chan Stanza, outSave chan<- Stanza) {
+	go func(in <-chan Stanza, out chan<- Stanza) {
 		defer close(out)
-		in := inSave
-		var out chan<- Stanza
-		var st Stanza
-		var ok bool
-		for {
-			select {
-			case st, ok = <- in:
-				if !ok {
-					break
-				}
-				cl.maybeUpdateRoster(st)
-				in = nil
-				out = outSave
-			case out <- st:
-				out = nil
-				in = inSave
-			}
+		for st := range(in) {
+			cl.maybeUpdateRoster(st)
+			out <- st
 		}
 	}(in, out)
 }
