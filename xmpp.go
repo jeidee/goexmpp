@@ -24,7 +24,6 @@ const (
 	// Version of RFC 3920 that we implement.
 	Version = "1.0"
 
-	// BUG(cjyar) These should be public.
 	// Various XML namespaces.
 	NsStreams = "urn:ietf:params:xml:ns:xmpp-streams"
 	NsStream = "http://etherx.jabber.org/streams"
