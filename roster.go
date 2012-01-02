@@ -62,8 +62,6 @@ func (cl *Client) fetchRoster() os.Error {
 	return <- ch
 }
 
-// BUG(cjyar) The roster isn't actually updated when things change.
-
 // Returns the current roster of other entities which this one has a
 // relationship with. Changes to the roster will be signaled by an
 // appropriate Iq appearing on Client.In. See RFC 3921, Section 7.4.
@@ -73,4 +71,41 @@ func (cl *Client) Roster() map[string] *RosterItem {
 		r[key] = val
 	}
 	return r
+}
+
+// The roster filter updates the Client's representation of the
+// roster, but it lets the relevant stanzas through.
+func (cl *Client) startRosterFilter() {
+	out := make(chan Stanza)
+	in := cl.AddFilter(out)
+	go func(inSave <-chan Stanza, outSave chan<- Stanza) {
+		defer close(out)
+		in := inSave
+		var out chan<- Stanza
+		var st Stanza
+		var ok bool
+		for {
+			select {
+			case st, ok = <- in:
+				if !ok {
+					break
+				}
+				cl.maybeUpdateRoster(st)
+				in = nil
+				out = outSave
+			case out <- st:
+				out = nil
+				in = inSave
+			}
+		}
+	}(in, out)
+}
+
+func (cl *Client) maybeUpdateRoster(st Stanza) {
+	rq, ok := st.GetNested().(*RosterQuery)
+	if st.GetName() == "iq" && st.GetType() == "set" && ok {
+		for _, item := range(rq.Item) {
+			cl.roster[item.Jid] = &item
+		}
+	}
 }

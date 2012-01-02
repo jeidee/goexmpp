@@ -146,6 +146,7 @@ func NewClient(jid *JID, password string,
 	// Start the manager for the filters that can modify what the
 	// app sees.
 	clIn := cl.startFilter(stIn)
+	cl.startRosterFilter()
 
 	// Initial handshake.
 	hsOut := &stream{To: jid.Domain, Version: Version}
@@ -200,6 +201,8 @@ func (cl *Client) startFilter(srvIn <-chan Stanza) <-chan Stanza {
 	filterOut := make(chan (<-chan Stanza))
 	filterIn := make(chan (<-chan Stanza))
 	go filter(srvIn, cliOut, filterOut, filterIn)
+	cl.filterOut = filterOut
+	cl.filterIn = filterIn
 	return cliOut
 }
 
