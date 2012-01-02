@@ -41,7 +41,7 @@ const (
 	// constant. We should have both a log level and a
 	// syslog.Writer, so the app can control how much time we
 	// spend generating log messages, as well as where they go.
-	debug = true
+	debug = false
 )
 
 // The client in a client-server XMPP connection.
