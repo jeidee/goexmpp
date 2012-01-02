@@ -301,6 +301,34 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 	}
 	buf.WriteString(">")
 
+	if m, ok := st.(*Message) ; ok {
+		err := xml.Marshal(buf, m.Subject)
+		if err != nil {
+			return nil, err
+		}
+		err = xml.Marshal(buf, m.Body)
+		if err != nil {
+			return nil, err
+		}
+		err = xml.Marshal(buf, m.Thread)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if p, ok := st.(*Presence) ; ok {
+		err := xml.Marshal(buf, p.Show)
+		if err != nil {
+			return nil, err
+		}
+		err = xml.Marshal(buf, p.Status)
+		if err != nil {
+			return nil, err
+		}
+		err = xml.Marshal(buf, p.Priority)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if st.GetNested() != nil {
 		xml.Marshal(buf, st.GetNested())
 	} else if st.generic() != nil {
@@ -369,22 +397,6 @@ func (m *Message) MarshalXML() ([]byte, os.Error) {
 	return marshalXML(m)
 }
 
-func (m *Message) InnerMarshal(w io.Writer) os.Error {
-	err := xml.Marshal(w, m.Subject)
-	if err != nil {
-		return err
-	}
-	err = xml.Marshal(w, m.Body)
-	if err != nil {
-		return err
-	}
-	err = xml.Marshal(w, m.Thread)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (p *Presence) GetName() string {
 	return "presence"
 }
@@ -431,22 +443,6 @@ func (p *Presence) innerxml() string {
 
 func (p *Presence) MarshalXML() ([]byte, os.Error) {
 	return marshalXML(p)
-}
-
-func (p *Presence) InnerMarshal(w io.Writer) os.Error {
-	err := xml.Marshal(w, p.Show)
-	if err != nil {
-		return err
-	}
-	err = xml.Marshal(w, p.Status)
-	if err != nil {
-		return err
-	}
-	err = xml.Marshal(w, p.Priority)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (iq *Iq) GetName() string {
