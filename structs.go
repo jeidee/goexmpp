@@ -153,12 +153,12 @@ var _ Stanza = &Iq{}
 
 // Describes an XMPP stanza error. See RFC 3920, Section 9.3.
 type Error struct {
+	XMLName xml.Name `xml:"error"`
 	// The error type attribute.
 	Type string `xml:"attr"`
 	// Any nested element, if present.
 	Any *Generic
 }
-var _ xml.Marshaler = &Error{}
 var _ os.Error = &Error{}
 
 // Used for resource binding as a nested element inside <iq/>.
@@ -249,9 +249,6 @@ func (s *streamError) MarshalXML() ([]byte, os.Error) {
 	return buf.Bytes(), nil
 }
 
-// BUG(cjyar) We can probably eliminate this if we use an
-// appropriately-tagged XMLName field.
-
 func (e *errText) MarshalXML() ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<text")
@@ -318,23 +315,10 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 	return buf.Bytes(), nil
 }
 
-// BUG(cjyar) We can probably eliminate this if we add an XMLName
-// field with an appropriate tag.
-func (er *Error) MarshalXML() ([]byte, os.Error) {
-	buf := bytes.NewBuffer(nil)
-	buf.WriteString("<error")
-	writeField(buf, "type", er.Type)
-	buf.WriteString(">")
-	if er.Any != nil {
-		xml.Marshal(buf, er.Any)
-	}
-	buf.WriteString("</error>")
-	return buf.Bytes(), nil
-}
-
 func (er *Error) String() string {
-	bytes, _ := er.MarshalXML()
-	return string(bytes)
+	buf := bytes.NewBuffer(nil)
+	xml.Marshal(buf, er)
+	return buf.String()
 }
 
 func (m *Message) GetName() string {
