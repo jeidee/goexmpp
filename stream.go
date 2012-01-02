@@ -255,9 +255,9 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 					x)
 				continue
 			}
-			if handlers[st.XId()] != nil {
-				f := handlers[st.XId()]
-				handlers[st.XId()] = nil
+			if handlers[st.GetId()] != nil {
+				f := handlers[st.GetId()]
+				handlers[st.GetId()] = nil
 				send = f(st)
 			}
 			if send {
@@ -562,11 +562,11 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	}
 	msg := &Iq{Type: "set", Id: <- cl.Id, Nested: &bindReq}
 	f := func(st Stanza) bool {
-		if st.XType() == "error" {
+		if st.GetType() == "error" {
 			log.Println("Resource binding failed")
 			return false
 		}
-		bindRepl, ok := st.XNested().(*bindIq)
+		bindRepl, ok := st.GetNested().(*bindIq)
 		if !ok {
 			log.Printf("bad bind reply: %v", bindRepl)
 			return false

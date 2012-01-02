@@ -269,9 +269,9 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 				"session"}}}
 	ch := make(chan os.Error)
 	f := func(st Stanza) bool {
-		if st.XType() == "error" {
+		if st.GetType() == "error" {
 			log.Printf("Can't start session: %v", st)
-			ch <- st.XError()
+			ch <- st.GetError()
 			return false
 		}
 		ch <- nil

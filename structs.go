@@ -76,27 +76,25 @@ type auth struct {
 	Any *Generic
 }
 
-// BUG(cjyar) Change XTo() to GetTo(), etc.
-
 // One of the three core XMPP stanza types: iq, message, presence. See
 // RFC3920, section 9.
 type Stanza interface {
 	// Returns "iq", "message", or "presence".
-	XName() string
+	GetName() string
 	// The to attribute.
-	XTo() string
+	GetTo() string
 	// The from attribute.
-	XFrom() string
+	GetFrom() string
 	// The id attribute.
-	XId() string
+	GetId() string
 	// The type attribute.
-	XType() string
+	GetType() string
 	// The xml:lang attribute.
-	XLang() string
+	GetLang() string
 	// A nested error element, if any.
-	XError() *Error
+	GetError() *Error
 	// A (non-error) nested element, if any.
-	XNested() interface{}
+	GetNested() interface{}
 	setNested(interface{})
 	generic() *Generic
 	innerxml() string
@@ -288,26 +286,26 @@ func (u *Generic) String() string {
 func marshalXML(st Stanza) ([]byte, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<")
-	buf.WriteString(st.XName())
-	if st.XTo() != "" {
-		writeField(buf, "to", st.XTo())
+	buf.WriteString(st.GetName())
+	if st.GetTo() != "" {
+		writeField(buf, "to", st.GetTo())
 	}
-	if st.XFrom() != "" {
-		writeField(buf, "from", st.XFrom())
+	if st.GetFrom() != "" {
+		writeField(buf, "from", st.GetFrom())
 	}
-	if st.XId() != "" {
-		writeField(buf, "id", st.XId())
+	if st.GetId() != "" {
+		writeField(buf, "id", st.GetId())
 	}
-	if st.XType() != "" {
-		writeField(buf, "type", st.XType())
+	if st.GetType() != "" {
+		writeField(buf, "type", st.GetType())
 	}
-	if st.XLang() != "" {
-		writeField(buf, "xml:lang", st.XLang())
+	if st.GetLang() != "" {
+		writeField(buf, "xml:lang", st.GetLang())
 	}
 	buf.WriteString(">")
 
-	if st.XNested() != nil {
-		xml.Marshal(buf, st.XNested())
+	if st.GetNested() != nil {
+		xml.Marshal(buf, st.GetNested())
 	} else if st.generic() != nil {
 		xml.Marshal(buf, st.generic())
 	} else if st.innerxml() != "" {
@@ -315,7 +313,7 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 	}
 
 	buf.WriteString("</")
-	buf.WriteString(st.XName())
+	buf.WriteString(st.GetName())
 	buf.WriteString(">")
 	return buf.Bytes(), nil
 }
@@ -339,35 +337,35 @@ func (er *Error) String() string {
 	return string(bytes)
 }
 
-func (m *Message) XName() string {
+func (m *Message) GetName() string {
 	return "message"
 }
 
-func (m *Message) XTo() string {
+func (m *Message) GetTo() string {
 	return m.To
 }
 
-func (m *Message) XFrom() string {
+func (m *Message) GetFrom() string {
 	return m.From
 }
 
-func (m *Message) XId() string {
+func (m *Message) GetId() string {
 	return m.Id
 }
 
-func (m *Message) XType() string {
+func (m *Message) GetType() string {
 	return m.Type
 	}
 
-func (m *Message) XLang() string {
+func (m *Message) GetLang() string {
 	return m.Lang
 }
 
-func (m *Message) XError() *Error {
+func (m *Message) GetError() *Error {
 	return m.Error
 }
 
-func (m *Message) XNested() interface{} {
+func (m *Message) GetNested() interface{} {
 	return m.Nested
 }
 
@@ -403,35 +401,35 @@ func (m *Message) InnerMarshal(w io.Writer) os.Error {
 	return nil
 }
 
-func (p *Presence) XName() string {
+func (p *Presence) GetName() string {
 	return "presence"
 }
 
-func (p *Presence) XTo() string {
+func (p *Presence) GetTo() string {
 	return p.To
 }
 
-func (p *Presence) XFrom() string {
+func (p *Presence) GetFrom() string {
 	return p.From
 }
 
-func (p *Presence) XId() string {
+func (p *Presence) GetId() string {
 	return p.Id
 }
 
-func (p *Presence) XType() string {
+func (p *Presence) GetType() string {
 	return p.Type
 	}
 
-func (p *Presence) XLang() string {
+func (p *Presence) GetLang() string {
 	return p.Lang
 }
 
-func (p *Presence) XError() *Error {
+func (p *Presence) GetError() *Error {
 	return p.Error
 }
 
-func (p *Presence) XNested() interface{} {
+func (p *Presence) GetNested() interface{} {
 	return p.Nested
 }
 
@@ -467,35 +465,35 @@ func (p *Presence) InnerMarshal(w io.Writer) os.Error {
 	return nil
 }
 
-func (iq *Iq) XName() string {
+func (iq *Iq) GetName() string {
 	return "iq"
 }
 
-func (iq *Iq) XTo() string {
+func (iq *Iq) GetTo() string {
 	return iq.To
 }
 
-func (iq *Iq) XFrom() string {
+func (iq *Iq) GetFrom() string {
 	return iq.From
 }
 
-func (iq *Iq) XId() string {
+func (iq *Iq) GetId() string {
 	return iq.Id
 }
 
-func (iq *Iq) XType() string {
+func (iq *Iq) GetType() string {
 	return iq.Type
 	}
 
-func (iq *Iq) XLang() string {
+func (iq *Iq) GetLang() string {
 	return iq.Lang
 }
 
-func (iq *Iq) XError() *Error {
+func (iq *Iq) GetError() *Error {
 	return iq.Error
 }
 
-func (iq *Iq) XNested() interface{} {
+func (iq *Iq) GetNested() interface{} {
 	return iq.Nested
 }
 

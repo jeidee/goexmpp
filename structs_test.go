@@ -97,14 +97,14 @@ func TestParseStanza(t *testing.T) {
 	if err != nil {
 		t.Fatalf("iq: %v", err)
 	}
-	assertEquals(t, "iq", st.XName())
-	assertEquals(t, "alice", st.XTo())
-	assertEquals(t, "bob", st.XFrom())
-	assertEquals(t, "1", st.XId())
-	assertEquals(t, "A", st.XType())
-	assertEquals(t, "en", st.XLang())
-	if st.XError() != nil {
-		t.Errorf("iq: error %v", st.XError())
+	assertEquals(t, "iq", st.GetName())
+	assertEquals(t, "alice", st.GetTo())
+	assertEquals(t, "bob", st.GetFrom())
+	assertEquals(t, "1", st.GetId())
+	assertEquals(t, "A", st.GetType())
+	assertEquals(t, "en", st.GetLang())
+	if st.GetError() != nil {
+		t.Errorf("iq: error %v", st.GetError())
 	}
 	if st.generic() == nil {
 		t.Errorf("iq: nil child")
@@ -117,13 +117,13 @@ func TestParseStanza(t *testing.T) {
 	if err != nil {
 		t.Fatalf("message: %v", err)
 	}
-	assertEquals(t, "message", st.XName())
-	assertEquals(t, "alice", st.XTo())
-	assertEquals(t, "bob", st.XFrom())
-	assertEquals(t, "", st.XId())
-	assertEquals(t, "", st.XLang())
-	if st.XError() != nil {
-		t.Errorf("message: error %v", st.XError())
+	assertEquals(t, "message", st.GetName())
+	assertEquals(t, "alice", st.GetTo())
+	assertEquals(t, "bob", st.GetFrom())
+	assertEquals(t, "", st.GetId())
+	assertEquals(t, "", st.GetLang())
+	if st.GetError() != nil {
+		t.Errorf("message: error %v", st.GetError())
 	}
 	if st.generic() != nil {
 		t.Errorf("message: child %v", st.generic())
@@ -134,5 +134,5 @@ func TestParseStanza(t *testing.T) {
 	if err != nil {
 		t.Fatalf("presence: %v", err)
 	}
-	assertEquals(t, "presence", st.XName())
+	assertEquals(t, "presence", st.GetName())
 }

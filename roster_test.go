@@ -30,10 +30,10 @@ func TestRosterIqUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseExtended: %v", err)
 	}
-	assertEquals(t, "iq", st.XName())
-	assertEquals(t, "from", st.XFrom())
-	assertEquals(t, "en", st.XLang())
-	nested := st.XNested()
+	assertEquals(t, "iq", st.GetName())
+	assertEquals(t, "from", st.GetFrom())
+	assertEquals(t, "en", st.GetLang())
+	nested := st.GetNested()
 	if nested == nil {
 		t.Fatalf("nested nil")
 	}

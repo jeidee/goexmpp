@@ -43,7 +43,7 @@ func (cl *Client) fetchRoster() os.Error {
 			ch <- iq.Error
 			return false
 		}
-		rq, ok := st.XNested().(*RosterQuery)
+		rq, ok := st.GetNested().(*RosterQuery)
 		if !ok {
 			ch <- os.NewError(fmt.Sprintf(
 				"Roster query result not query: %v", st))
