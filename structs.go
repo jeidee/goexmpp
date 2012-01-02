@@ -271,6 +271,9 @@ func writeField(w io.Writer, field, value string) {
 }
 
 func (u *Generic) String() string {
+	if u == nil {
+		return "nil"
+	}
 	var sub string
 	if u.Any != nil {
 		sub = u.Any.String()

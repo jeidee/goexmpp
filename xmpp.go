@@ -200,7 +200,9 @@ func (cl *Client) startFilter(srvIn <-chan Stanza) <-chan Stanza {
 	cliOut := make(chan Stanza)
 	filterOut := make(chan (<-chan Stanza))
 	filterIn := make(chan (<-chan Stanza))
-	go filter(srvIn, cliOut, filterOut, filterIn)
+	nullFilter := make(chan Stanza)
+	go filterBottom(srvIn, nullFilter)
+	go filterTop(filterOut, filterIn, nullFilter, cliOut)
 	cl.filterOut = filterOut
 	cl.filterIn = filterIn
 	return cliOut
