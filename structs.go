@@ -55,7 +55,7 @@ var _ xml.Marshaler = &errText{}
 type Features struct {
 	Starttls *starttls
 	Mechanisms mechs
-	Bind *Generic
+	Bind *bindIq
 	Session *Generic
 	Any *Generic
 }
@@ -162,6 +162,13 @@ type Error struct {
 }
 var _ xml.Marshaler = &Error{}
 var _ os.Error = &Error{}
+
+// Used for resource binding as a nested element inside <iq/>.
+type bindIq struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:xmpp-bind bind"`
+	Resource *string `xml:"resource"`
+	Jid *string `xml:"jid"`
+}
 
 // Holds an XML element not described by the more specific types.
 type Generic struct {
@@ -537,4 +544,8 @@ func ParseStanza(str string) (Stanza, os.Error) {
 		return nil, err
 	}
 	return stan, nil
+}
+
+func newBind(name *xml.Name) interface{} {
+	return &bindIq{}
 }

@@ -553,40 +553,31 @@ func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 	return response
 }
 
-// BUG(cjyar) This should use iq.nested rather than iq.generic.
-
 // Send a request to bind a resource. RFC 3920, section 7.
-func (cl *Client) bind(bind *Generic) {
+func (cl *Client) bind(bindAdv *bindIq) {
 	res := cl.Jid.Resource
-	msg := &Iq{Type: "set", Id: <- cl.Id, Any:
-		&Generic{XMLName: xml.Name{Space: NsBind, Local:
-					"bind"}}}
+	bindReq := &bindIq{}
 	if res != "" {
-		msg.Any.Any = &Generic{XMLName: xml.Name{Local:
-				"resource"}, Chardata: res}
+		bindReq.Resource = &res
 	}
+	msg := &Iq{Type: "set", Id: <- cl.Id, Nested: &bindReq}
 	f := func(st Stanza) bool {
 		if st.XType() == "error" {
 			log.Println("Resource binding failed")
 			return false
 		}
-		bind := st.generic()
-		if bind == nil {
-			log.Println("nil resource bind")
+		bindRepl, ok := st.XNested().(*bindIq)
+		if !ok {
+			log.Printf("bad bind reply: %v", bindRepl)
 			return false
 		}
-		jidEle := bind.Any
-		if jidEle == nil {
-			log.Println("nil resource")
-			return false
-		}
-		jidStr := jidEle.Chardata
-		if jidStr == "" {
+		jidStr := bindRepl.Jid
+		if jidStr == nil || *jidStr == "" {
 			log.Println("empty resource")
 			return false
 		}
 		jid := new(JID)
-		if !jid.Set(jidStr) {
+		if !jid.Set(*jidStr) {
 			log.Println("Can't parse JID %s", jidStr)
 			return false
 		}

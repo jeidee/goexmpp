@@ -125,6 +125,7 @@ func NewClient(jid *JID, password string,
 		extStanza = make(map[string] func(*xml.Name) interface{})
 	}
 	extStanza[NsRoster] = newRosterQuery
+	extStanza[NsBind] = newBind
 
 	// Start the unique id generator.
 	go makeIds(idCh)
