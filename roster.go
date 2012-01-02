@@ -101,11 +101,19 @@ func (cl *Client) startRosterFilter() {
 	}(in, out)
 }
 
+// BUG(cjyar) This isn't actually thread safe, though it's unlikely it
+// will fail in practice. Either the roster should be protected with a
+// mutex, or we should make the roster available on a channel instead
+// of via a method call.
 func (cl *Client) maybeUpdateRoster(st Stanza) {
 	rq, ok := st.GetNested().(*RosterQuery)
 	if st.GetName() == "iq" && st.GetType() == "set" && ok {
 		for _, item := range(rq.Item) {
-			cl.roster[item.Jid] = &item
+			if item.Subscription == "remove" {
+				cl.roster[item.Jid] = nil
+			} else {
+				cl.roster[item.Jid] = &item
+			}
 		}
 	}
 }
