@@ -187,6 +187,8 @@ func (jid *JID) String() string {
 	return result
 }
 
+// Set implements flag.Value. It returns true if it successfully
+// parses the string.
 func (jid *JID) Set(val string) bool {
 	r := regexp.MustCompile("^(([^@/]+)@)?([^@/]+)(/([^@/]+))?$")
 	parts := r.FindStringSubmatch(val)

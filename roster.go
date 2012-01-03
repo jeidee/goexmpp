@@ -91,6 +91,7 @@ func (cl *Client) startRosterFilter() {
 // will fail in practice. Either the roster should be protected with a
 // mutex, or we should make the roster available on a channel instead
 // of via a method call.
+// BUG(cjyar) RFC 3921, Section 7.4 says we need to reply.
 func (cl *Client) maybeUpdateRoster(st Stanza) {
 	rq, ok := st.GetNested().(*RosterQuery)
 	if st.GetName() == "iq" && st.GetType() == "set" && ok {
