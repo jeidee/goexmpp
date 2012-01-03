@@ -1,0 +1,8 @@
+# Leave this file -- it activates the Mercurial EOL extension to
+# convert newlines between various formats.
+[patterns]
+**.go = native
+**Makefile* = LF
+**README* = native
+**.txt = native
+.hgeol = native
