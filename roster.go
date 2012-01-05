@@ -50,8 +50,8 @@ func (cl *Client) fetchRoster() os.Error {
 			return false
 		}
 		cl.roster = make(map[string] *RosterItem, len(rq.Item))
-		for _, item := range(rq.Item) {
-			cl.roster[item.Jid] = &item
+		for i, item := range(rq.Item) {
+			cl.roster[item.Jid] = &rq.Item[i]
 		}
 		ch <- nil
 		return false
@@ -95,11 +95,11 @@ func (cl *Client) startRosterFilter() {
 func (cl *Client) maybeUpdateRoster(st Stanza) {
 	rq, ok := st.GetNested().(*RosterQuery)
 	if st.GetName() == "iq" && st.GetType() == "set" && ok {
-		for _, item := range(rq.Item) {
+		for i, item := range(rq.Item) {
 			if item.Subscription == "remove" {
 				cl.roster[item.Jid] = nil
 			} else {
-				cl.roster[item.Jid] = &item
+				cl.roster[item.Jid] = &rq.Item[i]
 			}
 		}
 	}
