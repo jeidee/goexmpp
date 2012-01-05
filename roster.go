@@ -87,6 +87,7 @@ func (cl *Client) startRosterFilter() {
 	}(in, out)
 }
 
+// BUG(cjyar) This isn't getting updates.
 // BUG(cjyar) This isn't actually thread safe, though it's unlikely it
 // will fail in practice. Either the roster should be protected with a
 // mutex, or we should make the roster available on a channel instead
