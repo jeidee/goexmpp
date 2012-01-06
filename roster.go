@@ -27,18 +27,31 @@ type RosterItem struct {
 	Group []string
 }
 
+type rosterClient struct {
+	rosterChan <-chan []RosterItem
+	rosterUpdate chan<- RosterItem
+}
+
+var (
+	rosterClients = make(map[string] rosterClient)
+)
+
 // Implicitly becomes part of NewClient's extStanza arg.
 func newRosterQuery(name *xml.Name) interface{} {
 	return &RosterQuery{}
 }
 
 // Synchronously fetch this entity's roster from the server and cache
-// that information.
-func (cl *Client) fetchRoster() os.Error {
-	iq := &Iq{From: cl.Jid.String(), Id: <- cl.Id, Type: "get",
+// that information. This is called once from a fairly deep call stack
+// as part of XMPP negotiation.
+func fetchRoster(client *Client) os.Error {
+	rosterUpdate := rosterClients[client.Uid].rosterUpdate
+
+	iq := &Iq{From: client.Jid.String(), Id: <- Id, Type: "get",
 		Nested: RosterQuery{}}
 	ch := make(chan os.Error)
 	f := func(st Stanza) bool {
+		defer close(ch)
 		if iq.Type == "error" {
 			ch <- iq.Error
 			return false
@@ -49,59 +62,74 @@ func (cl *Client) fetchRoster() os.Error {
 				"Roster query result not query: %v", st))
 			return false
 		}
-		cl.roster = make(map[string] *RosterItem, len(rq.Item))
-		for i, item := range(rq.Item) {
-			cl.roster[item.Jid] = &rq.Item[i]
+		for _, item := range(rq.Item) {
+			rosterUpdate <- item
 		}
 		ch <- nil
 		return false
 	}
-	cl.HandleStanza(iq.Id, f)
-	cl.Out <- iq
+	client.HandleStanza(iq.Id, f)
+	client.Out <- iq
 	// Wait for f to complete.
 	return <- ch
 }
 
-// Returns the current roster of other entities which this one has a
-// relationship with. Changes to the roster will be signaled by an
-// appropriate Iq appearing on Client.In. See RFC 3921, Section 7.4.
-func (cl *Client) Roster() map[string] *RosterItem {
-	r := make(map[string] *RosterItem)
-	for key, val := range(cl.roster) {
-		r[key] = val
-	}
-	return r
-}
-
 // The roster filter updates the Client's representation of the
-// roster, but it lets the relevant stanzas through.
-func (cl *Client) startRosterFilter() {
+// roster, but it lets the relevant stanzas through. This also starts
+// the roster feeder, which is the goroutine that provides data on
+// client.Roster.
+func startRosterFilter(client *Client) {
 	out := make(chan Stanza)
-	in := cl.AddFilter(out)
+	in := client.AddFilter(out)
 	go func(in <-chan Stanza, out chan<- Stanza) {
 		defer close(out)
 		for st := range(in) {
-			cl.maybeUpdateRoster(st)
+			maybeUpdateRoster(client, st)
 			out <- st
 		}
 	}(in, out)
+
+	rosterCh := make(chan []RosterItem)
+	rosterUpdate := make(chan RosterItem)
+	rosterClients[client.Uid] = rosterClient{rosterChan: rosterCh,
+		rosterUpdate: rosterUpdate}
+	go feedRoster(rosterCh, rosterUpdate)
 }
 
-// BUG(cjyar) This isn't getting updates.
-// BUG(cjyar) This isn't actually thread safe, though it's unlikely it
-// will fail in practice. Either the roster should be protected with a
-// mutex, or we should make the roster available on a channel instead
-// of via a method call.
 // BUG(cjyar) RFC 3921, Section 7.4 says we need to reply.
-func (cl *Client) maybeUpdateRoster(st Stanza) {
+func maybeUpdateRoster(client *Client, st Stanza) {
+	rosterUpdate := rosterClients[client.Uid].rosterUpdate
+
 	rq, ok := st.GetNested().(*RosterQuery)
 	if st.GetName() == "iq" && st.GetType() == "set" && ok {
-		for i, item := range(rq.Item) {
-			if item.Subscription == "remove" {
-				cl.roster[item.Jid] = nil
-			} else {
-				cl.roster[item.Jid] = &rq.Item[i]
-			}
+		for _, item := range(rq.Item) {
+			rosterUpdate <- item
 		}
 	}
+}
+
+func feedRoster(rosterCh chan<- []RosterItem, rosterUpdate <-chan RosterItem) {
+	roster := make(map[string] RosterItem)
+	snapshot := []RosterItem{}
+	for {
+		select {
+		case newIt := <-rosterUpdate:
+			if newIt.Subscription == "remove" {
+				roster[newIt.Jid] = RosterItem{}, false
+			} else {
+				roster[newIt.Jid] = newIt
+			}
+		case rosterCh <- snapshot:
+		}
+		snapshot = make([]RosterItem, 0, len(roster))
+		for _, v := range(roster) {
+			snapshot = append(snapshot, v)
+		}
+	}
+}
+
+// Retrieve a snapshot of the roster for the given Client.
+func Roster(client *Client) []RosterItem {
+	rosterChan := rosterClients[client.Uid].rosterChan
+	return <- rosterChan
 }

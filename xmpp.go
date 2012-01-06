@@ -44,8 +44,30 @@ const (
 	debug = false
 )
 
+// This channel may be used as a convenient way to generate a unique
+// id for an iq, message, or presence stanza.
+var Id <-chan string
+
+func init() {
+	// Start the unique id generator.
+	idCh := make(chan string)
+	Id = idCh
+	go func(ch chan<- string) {
+		id := int64(1)
+		for {
+			str := fmt.Sprintf("id_%d", id)
+			ch <- str
+			id++
+		}
+	}(idCh)
+}
+
 // The client in a client-server XMPP connection.
 type Client struct {
+	// This client's unique ID. It's unique within the context of
+	// this process, so if multiple Client objects exist, each
+	// will be distinguishable by its Uid.
+	Uid string
 	// This client's JID. This will be updated asynchronously by
 	// the time StartSession() returns.
 	Jid JID
@@ -56,9 +78,6 @@ type Client struct {
 	authDone bool
 	handlers chan *stanzaHandler
 	inputControl chan int
-	// This channel may be used as a convenient way to generate a
-	// unique id for an iq, message, or presence stanza.
-	Id <-chan string
 	// Incoming XMPP stanzas from the server will be published on
 	// this channel. Information which is only used by this
 	// library to set up the XMPP stream will not appear here.
@@ -72,11 +91,14 @@ type Client struct {
 	// connection process. It should not be updated once
 	// StartSession() returns.
 	Features *Features
-	roster map[string] *RosterItem
 	filterOut chan<- <-chan Stanza
 	filterIn <-chan <-chan Stanza
 }
 var _ io.Closer = &Client{}
+
+// BUG(cjyar) Replace extStanza with a generalized extension interface
+// that handles starting filters, registering extended stanzes, and
+// anything else an extension has to do.
 
 // Connect to the appropriate server and authenticate as the given JID
 // with the given password. This function will return as soon as a TCP
@@ -114,22 +136,18 @@ func NewClient(jid *JID, password string,
 	}
 
 	cl := new(Client)
+	cl.Uid = <- Id
 	cl.password = password
 	cl.Jid = *jid
 	cl.socket = tcp
 	cl.handlers = make(chan *stanzaHandler, 100)
 	cl.inputControl = make(chan int)
-	idCh := make(chan string)
-	cl.Id = idCh
 
 	if extStanza == nil {
 		extStanza = make(map[string] func(*xml.Name) interface{})
 	}
 	extStanza[NsRoster] = newRosterQuery
 	extStanza[NsBind] = newBind
-
-	// Start the unique id generator.
-	go makeIds(idCh)
 
 	// Start the transport handler, initially unencrypted.
 	tlsr, tlsw := cl.startTransport()
@@ -146,7 +164,7 @@ func NewClient(jid *JID, password string,
 	// Start the manager for the filters that can modify what the
 	// app sees.
 	clIn := cl.startFilter(stIn)
-	cl.startRosterFilter()
+	startRosterFilter(cl)
 
 	// Initial handshake.
 	hsOut := &stream{To: jid.Domain, Version: Version}
@@ -259,15 +277,6 @@ func tryClose(xs ...interface{}) {
 	}
 }
 
-func makeIds(ch chan<- string) {
-	id := int64(1)
-	for {
-		str := fmt.Sprintf("id_%d", id)
-		ch <- str
-		id++
-	}
-}
-
 // bindDone is called when we've finished resource binding (and all
 // the negotiations that precede it). Now we can start accepting
 // traffic from the app.
@@ -281,7 +290,7 @@ func (cl *Client) bindDone() {
 // presence. The presence can be as simple as a newly-initialized
 // Presence struct.  See RFC 3921, Section 3.
 func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
-	id := <- cl.Id
+	id := <- Id
 	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Any:
 		&Generic{XMLName: xml.Name{Space: NsSession, Local:
 				"session"}}}
@@ -303,7 +312,7 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 		return err
 	}
 	if getRoster {
-		err := cl.fetchRoster()
+		err := fetchRoster(cl)
 		if err != nil {
 			return err
 		}

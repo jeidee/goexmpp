@@ -34,10 +34,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("StartSession: %v", err)
 	}
-	roster := c.Roster()
+	roster := xmpp.Roster(c)
 	fmt.Printf("%d roster entries:\n", len(roster))
-	for jid, entry := range(roster) {
-		fmt.Printf("%s: %v\n", jid, entry)
+	for i, entry := range(roster) {
+		fmt.Printf("%d: %v\n", i, entry)
 	}
 
 	go func(ch <-chan xmpp.Stanza) {

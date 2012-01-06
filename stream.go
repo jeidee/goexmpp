@@ -309,6 +309,7 @@ func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
 				continue
 			}
 			filterIn <- topFilter
+			topFilter = newFilterOut
 
 		case data, ok := <-topFilter:
 			if !ok {
@@ -593,7 +594,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	if res != "" {
 		bindReq.Resource = &res
 	}
-	msg := &Iq{Type: "set", Id: <- cl.Id, Nested: &bindReq}
+	msg := &Iq{Type: "set", Id: <- Id, Nested: &bindReq}
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {
 			log.Println("Resource binding failed")
