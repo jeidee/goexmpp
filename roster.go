@@ -96,7 +96,6 @@ func startRosterFilter(client *Client) {
 	go feedRoster(rosterCh, rosterUpdate)
 }
 
-// BUG(cjyar) RFC 3921, Section 7.4 says we need to reply.
 func maybeUpdateRoster(client *Client, st Stanza) {
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
@@ -105,6 +104,10 @@ func maybeUpdateRoster(client *Client, st Stanza) {
 		for _, item := range(rq.Item) {
 			rosterUpdate <- item
 		}
+		// Send a reply.
+		iq := &Iq{To: st.GetFrom(), Id: st.GetId(), Type:
+			"result"}
+		client.Out <- iq
 	}
 }
 
