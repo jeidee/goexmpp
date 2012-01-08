@@ -37,9 +37,8 @@ type stanzaHandler struct {
 // BUG(cjyar) Review all these *Client receiver methods. They should
 // probably either all be receivers, or none.
 
-func (cl *Client) readTransport(w io.Writer) {
-	defer fmt.Println("readTransport done")
-	defer tryClose(cl.socket, w)
+func (cl *Client) readTransport(w io.WriteCloser) {
+	defer w.Close()
 	cl.socket.SetReadTimeout(1e8)
 	p := make([]byte, 1024)
 	for {
@@ -69,8 +68,7 @@ func (cl *Client) readTransport(w io.Writer) {
 }
 
 func (cl *Client) writeTransport(r io.Reader) {
-	defer fmt.Println("writeTransport done")
-	defer tryClose(r, cl.socket)
+	defer cl.socket.Close()
 	p := make([]byte, 1024)
 	for {
 		nr, err := r.Read(p)
@@ -92,13 +90,12 @@ func (cl *Client) writeTransport(r io.Reader) {
 
 func readXml(r io.Reader, ch chan<- interface{},
 	extStanza map[string] func(*xml.Name) interface{}) {
-	defer fmt.Println("readXml done")
 	if Loglevel >= syslog.LOG_DEBUG {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
 		r = pr
 	}
-	defer tryClose(r, ch)
+	defer close(ch)
 
 	p := xml.NewParser(r)
 Loop:
@@ -222,7 +219,11 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 		go tee(pr, w, "C: ")
 		w = pw
 	}
-	defer tryClose(w, ch)
+	defer func(w io.Writer) {
+		if c, ok := w.(io.Closer) ; ok {
+			c.Close()
+		}
+	}(w)
 
 	for obj := range ch {
 		err := xml.Marshal(w, obj)
@@ -236,9 +237,7 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 }
 
 func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
-	defer fmt.Println("readStream done")
 	defer close(cliOut)
-	defer tryClose(srvIn, cliOut)
 
 	handlers := make(map[string] func(Stanza) bool)
 Loop:
@@ -294,7 +293,6 @@ Loop:
 // activity.
 func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
 	control <-chan int) {
-	defer fmt.Println("writeStream done")
 	defer close(srvOut)
 
 	var input <-chan Stanza
@@ -312,7 +310,6 @@ Loop:
 			}
 		case x, ok := <- input:
 			if !ok {
-				fmt.Println("writeStream input closed")
 				break Loop
 			}
 			if x == nil {
@@ -331,7 +328,6 @@ Loop:
 // app. This function manages the filters.
 func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
 	topFilter <-chan Stanza, app chan<- Stanza) {
-	defer fmt.Println("filterTop done")
 	defer close(app)
 Loop:
 	for {
@@ -357,7 +353,6 @@ Loop:
 }
 
 func filterBottom(from <-chan Stanza, to chan<- Stanza) {
-	defer fmt.Println("filterBottom done")
 	defer close(to)
 	for data := range(from) {
 		to <- data

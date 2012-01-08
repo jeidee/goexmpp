@@ -189,7 +189,7 @@ func NewClient(jid *JID, password string, exts []Extension) (*Client,
 	return cl, nil
 }
 
-func (cl *Client) startTransport() (io.Reader, io.Writer) {
+func (cl *Client) startTransport() (io.Reader, io.WriteCloser) {
 	inr, inw := io.Pipe()
 	outr, outw := io.Pipe()
 	go cl.readTransport(inw)
@@ -204,7 +204,7 @@ func startXmlReader(r io.Reader,
 	return ch
 }
 
-func startXmlWriter(w io.Writer) chan<- interface{} {
+func startXmlWriter(w io.WriteCloser) chan<- interface{} {
 	ch := make(chan interface{})
 	go writeXml(w, ch)
 	return ch
@@ -223,19 +223,23 @@ func (cl *Client) startStreamWriter(xmlOut chan<- interface{}) chan<- Stanza {
 }
 
 func (cl *Client) startFilter(srvIn <-chan Stanza) <-chan Stanza {
-	cliOut := make(chan Stanza)
+	cliIn := make(chan Stanza)
 	filterOut := make(chan (<-chan Stanza))
 	filterIn := make(chan (<-chan Stanza))
 	nullFilter := make(chan Stanza)
 	go filterBottom(srvIn, nullFilter)
-	go filterTop(filterOut, filterIn, nullFilter, cliOut)
+	go filterTop(filterOut, filterIn, nullFilter, cliIn)
 	cl.filterOut = filterOut
 	cl.filterIn = filterIn
-	return cliOut
+	return cliIn
 }
 
 func tee(r io.Reader, w io.Writer, prefix string) {
-	defer tryClose(r, w)
+	defer func(w io.Writer) {
+		if c, ok := w.(io.Closer) ; ok {
+			c.Close()
+		}
+	}(w)
 
 	buf := bytes.NewBuffer([]uint8(prefix))
 	for {
@@ -257,31 +261,6 @@ func tee(r io.Reader, w io.Writer, prefix string) {
 	leftover := buf.String()
 	if leftover != "" {
 		Log.Debug(buf.String())
-	}
-}
-
-func tryClose(xs ...interface{}) {
-	f1 := func(ch chan<- interface{}) {
-		defer func() {
-			recover()
-		}()
-		close(ch)
-	}
-	f2 := func(ch <-chan interface{}) {
-		defer func() {
-			recover()
-		}()
-		close(ch)
-	}
-
-	for _, x := range xs {
-		if c, ok := x.(io.Closer) ; ok {
-			c.Close()
-		} else if ch, ok := x.(chan<- interface{}) ; ok {
-			f1(ch)
-		} else if ch, ok := x.(<-chan interface{}) ; ok {
-			f2(ch)
-		}
 	}
 }
 
