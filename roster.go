@@ -12,6 +12,10 @@ import (
 
 // This file contains support for roster management, RFC 3921, Section 7.
 
+var rosterExt Extension = Extension{StanzaHandlers:
+	map[string] func(*xml.Name) interface{}{NsRoster:
+		newRosterQuery}, Start: startRosterFilter}
+
 // Roster query/result
 type RosterQuery struct {
 	XMLName xml.Name `xml:"jabber:iq:roster query"`

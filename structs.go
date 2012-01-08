@@ -530,6 +530,10 @@ func ParseStanza(str string) (Stanza, os.Error) {
 	return stan, nil
 }
 
+var bindExt Extension = Extension{StanzaHandlers:
+	map[string] func(*xml.Name) interface{}{NsBind: newBind},
+		Start: func(cl *Client) {}}
+
 func newBind(name *xml.Name) interface{} {
 	return &bindIq{}
 }

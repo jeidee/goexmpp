@@ -62,6 +62,12 @@ func init() {
 	}(idCh)
 }
 
+// Extensions can add stanza filters and/or new XML element types.
+type Extension struct {
+	StanzaHandlers map[string] func(*xml.Name) interface{}
+	Start func(*Client)
+}
+
 // The client in a client-server XMPP connection.
 type Client struct {
 	// This client's unique ID. It's unique within the context of
@@ -96,18 +102,18 @@ type Client struct {
 }
 var _ io.Closer = &Client{}
 
-// BUG(cjyar): Replace extStanza with a generalized extension interface
-// that handles starting filters, registering extended stanzes, and
-// anything else an extension has to do.
-
 // Connect to the appropriate server and authenticate as the given JID
 // with the given password. This function will return as soon as a TCP
 // connection has been established, but before XMPP stream negotiation
 // has completed. The negotiation will occur asynchronously, and any
 // send operation to Client.Out will block until negotiation (resource
 // binding) is complete.
-func NewClient(jid *JID, password string,
-	extStanza map[string] func(*xml.Name) interface{}) (*Client, os.Error) {
+func NewClient(jid *JID, password string, exts []Extension) (*Client,
+	os.Error) {
+	// Include the mandatory extensions.
+	exts = append(exts, rosterExt)
+	exts = append(exts, bindExt)
+
 	// Resolve the domain in the JID.
 	_, srvs, err := net.LookupSRV(clientSrv, "tcp", jid.Domain)
 	if err != nil {
@@ -143,11 +149,12 @@ func NewClient(jid *JID, password string,
 	cl.handlers = make(chan *stanzaHandler, 100)
 	cl.inputControl = make(chan int)
 
-	if extStanza == nil {
-		extStanza = make(map[string] func(*xml.Name) interface{})
+	extStanza := make(map[string] func(*xml.Name) interface{})
+	for _, ext := range(exts) {
+		for k, v := range(ext.StanzaHandlers) {
+			extStanza[k] = v
+		}
 	}
-	extStanza[NsRoster] = newRosterQuery
-	extStanza[NsBind] = newBind
 
 	// Start the transport handler, initially unencrypted.
 	tlsr, tlsw := cl.startTransport()
@@ -160,18 +167,21 @@ func NewClient(jid *JID, password string,
 	// events and responds to them.
 	stIn := cl.startStreamReader(xmlIn, cl.xmlOut)
 	clOut := cl.startStreamWriter(cl.xmlOut)
+	cl.Out = clOut
 
 	// Start the manager for the filters that can modify what the
 	// app sees.
 	clIn := cl.startFilter(stIn)
-	startRosterFilter(cl)
+	cl.In = clIn
+
+	// Add filters for our extensions.
+	for _, ext := range(exts) {
+		ext.Start(cl)
+	}
 
 	// Initial handshake.
 	hsOut := &stream{To: jid.Domain, Version: Version}
 	cl.xmlOut <- hsOut
-
-	cl.In = clIn
-	cl.Out = clOut
 
 	return cl, nil
 }
