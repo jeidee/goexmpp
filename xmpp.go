@@ -80,7 +80,6 @@ type Client struct {
 	// the time StartSession() returns.
 	Jid JID
 	password string
-	tcp net.Conn
 	socket net.Conn
 	socketSync sync.WaitGroup
 	saslExpected string
@@ -147,7 +146,6 @@ func NewClient(jid *JID, password string, exts []Extension) (*Client,
 	cl.Uid = <- Id
 	cl.password = password
 	cl.Jid = *jid
-	cl.tcp = tcp
 	cl.socket = tcp
 	cl.handlers = make(chan *stanzaHandler, 100)
 	cl.inputControl = make(chan int)
