@@ -6,9 +6,6 @@
 // and 3921, plus the various XEPs at http://xmpp.org/protocols/.
 package xmpp
 
-// BUG(cjyar) Figure out why the library doesn't exit when the server
-// closes its stream to us.
-
 import (
 	"bytes"
 	"fmt"
