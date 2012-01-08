@@ -410,6 +410,10 @@ func (cl *Client) handleTls(t *starttls) {
 	cl.socket = tls
 	cl.socketSync.Wait()
 
+	// Reset the read timeout on the (underlying) socket so the
+	// reader doesn't get woken up unnecessarily.
+	tcp.SetReadTimeout(0)
+
 	if Log != nil {
 		Log.Info("TLS negotiation succeeded.")
 	}
