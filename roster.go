@@ -52,7 +52,7 @@ func fetchRoster(client *Client) os.Error {
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
 	iq := &Iq{From: client.Jid.String(), Id: <- Id, Type: "get",
-		Nested: RosterQuery{}}
+		Nested: []interface{}{RosterQuery{}}}
 	ch := make(chan os.Error)
 	f := func(st Stanza) bool {
 		defer close(ch)
@@ -60,8 +60,14 @@ func fetchRoster(client *Client) os.Error {
 			ch <- iq.Error
 			return false
 		}
-		rq, ok := st.GetNested().(*RosterQuery)
-		if !ok {
+		var rq *RosterQuery
+		for _, ele := range(st.GetNested()) {
+			if q, ok := ele.(*RosterQuery) ; ok {
+				rq = q
+				break
+			}
+		}
+		if rq == nil {
 			ch <- os.NewError(fmt.Sprintf(
 				"Roster query result not query: %v", st))
 			return false
@@ -103,8 +109,14 @@ func startRosterFilter(client *Client) {
 func maybeUpdateRoster(client *Client, st Stanza) {
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
-	rq, ok := st.GetNested().(*RosterQuery)
-	if st.GetName() == "iq" && st.GetType() == "set" && ok {
+	var rq *RosterQuery
+	for _, ele := range(st.GetNested()) {
+		if q, ok := ele.(*RosterQuery) ; ok {
+			rq = q
+			break
+		}
+	}
+	if st.GetName() == "iq" && st.GetType() == "set" && rq != nil {
 		for _, item := range(rq.Item) {
 			rosterUpdate <- item
 		}

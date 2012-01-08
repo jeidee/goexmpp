@@ -145,21 +145,15 @@ func readXml(r io.Reader, ch chan<- interface{},
 			break
 		}
 
-		// If it's a Stanza, we check its "Any" element for a
-		// namespace that's registered with one of our
-		// extensions. If so, we need to re-unmarshal into an
-		// object of the correct type.
-		if st, ok := obj.(Stanza) ; ok && st.generic() != nil {
-			name := st.generic().XMLName
-			ns := name.Space
-			con := extStanza[ns]
-			if con != nil {
-				err = parseExtended(st, con)
-				if err != nil {
-					log.Printf("ext unmarshal: %v",
-						err)
-					break
-				}
+		// If it's a Stanza, we try to unmarshal its innerxml
+		// into objects of the appropriate respective
+		// types. This is specified by our extensions.
+		if st, ok := obj.(Stanza) ; ok {
+			err = parseExtended(st, extStanza)
+			if err != nil {
+				log.Printf("ext unmarshal: %v",
+					err)
+				break
 			}
 		}
 
@@ -168,35 +162,35 @@ func readXml(r io.Reader, ch chan<- interface{},
 	}
 }
 
-func parseExtended(st Stanza, con func(*xml.Name) interface{}) os.Error {
-	name := st.generic().XMLName
-	nested := con(&name)
-
+func parseExtended(st Stanza, extStanza map[string] func(*xml.Name) interface{}) os.Error {
 	// Now parse the stanza's innerxml to find the string that we
 	// can unmarshal this nested element from.
 	reader := strings.NewReader(st.innerxml())
 	p := xml.NewParser(reader)
-	var start *xml.StartElement
 	for {
 		t, err := p.Token()
+		if err == os.EOF {
+			break
+		}
 		if err != nil {
 			return err
 		}
 		if se, ok := t.(xml.StartElement) ; ok {
-			if se.Name.Space == name.Space {
-				start = &se
-				break
+			if con, ok := extStanza[se.Name.Space] ; ok {
+				// Call the indicated constructor.
+				nested := con(&se.Name)
+
+				// Unmarshal the nested element and
+				// stuff it back into the stanza.
+				err := p.Unmarshal(nested, &se)
+				if err != nil {
+					return err
+				}
+				st.addNested(nested)
 			}
 		}
 	}
 
-	// Unmarshal the nested element and stuff it back into the
-	// stanza.
-	err := p.Unmarshal(nested, start)
-	if err != nil {
-		return err
-	}
-	st.setNested(nested)
 	return nil
 }
 
@@ -594,15 +588,21 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	if res != "" {
 		bindReq.Resource = &res
 	}
-	msg := &Iq{Type: "set", Id: <- Id, Nested: &bindReq}
+	msg := &Iq{Type: "set", Id: <- Id, Nested: []interface{}{bindReq}}
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {
 			log.Println("Resource binding failed")
 			return false
 		}
-		bindRepl, ok := st.GetNested().(*bindIq)
-		if !ok {
-			log.Printf("bad bind reply: %v", bindRepl)
+		var bindRepl *bindIq
+		for _, ele := range(st.GetNested()) {
+			if b, ok := ele.(*bindIq) ; ok {
+				bindRepl = b
+				break
+			}
+		}
+		if bindRepl == nil {
+			log.Printf("bad bind reply: %v", st)
 			return false
 		}
 		jidStr := bindRepl.Jid

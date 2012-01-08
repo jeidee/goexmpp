@@ -83,8 +83,9 @@ func TestStreamErrorMarshal(t *testing.T) {
 }
 
 func TestIqMarshal(t *testing.T) {
-	iq := &Iq{Type: "set", Id: "3", Any: &Generic{XMLName:
-			xml.Name{Space: NsBind, Local: "bind"}}}
+	iq := &Iq{Type: "set", Id: "3", Nested:
+		[]interface{}{Generic{XMLName: xml.Name{Space: NsBind,
+				Local: "bind"}}}}
 	exp := `<iq id="3" type="set"><bind xmlns="` + NsBind +
 		`"></bind></iq>`
 	assertMarshal(t, exp, iq)
@@ -106,11 +107,10 @@ func TestParseStanza(t *testing.T) {
 	if st.GetError() != nil {
 		t.Errorf("iq: error %v", st.GetError())
 	}
-	if st.generic() == nil {
-		t.Errorf("iq: nil child")
+	if st.innerxml() == "" {
+		t.Errorf("iq: empty child")
 	}
-	assertEquals(t, "foo", st.generic().XMLName.Local)
-	assertEquals(t, "text", st.generic().Chardata)
+	assertEquals(t, "<foo>text</foo>", st.innerxml())
 
 	str = `<message to="alice" from="bob"/>`
 	st, err = ParseStanza(str)
@@ -125,8 +125,8 @@ func TestParseStanza(t *testing.T) {
 	if st.GetError() != nil {
 		t.Errorf("message: error %v", st.GetError())
 	}
-	if st.generic() != nil {
-		t.Errorf("message: child %v", st.generic())
+	if st.innerxml() != "" {
+		t.Errorf("message: child %v", st.innerxml())
 	}
 
 	str = `<presence/>`

@@ -301,9 +301,9 @@ func (cl *Client) bindDone() {
 // Presence struct.  See RFC 3921, Section 3.
 func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 	id := <- Id
-	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Any:
-		&Generic{XMLName: xml.Name{Space: NsSession, Local:
-				"session"}}}
+	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Nested:
+		[]interface{}{ Generic{XMLName: xml.Name{Space:
+					NsSession, Local: "session"}}}}
 	ch := make(chan os.Error)
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {

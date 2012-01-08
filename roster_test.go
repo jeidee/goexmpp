@@ -14,7 +14,8 @@ import (
 // This is mostly just tests of the roster data structures.
 
 func TestRosterIqMarshal(t *testing.T) {
-	iq := &Iq{From: "from", Lang: "en", Nested: RosterQuery{}}
+	iq := &Iq{From: "from", Lang: "en", Nested:
+		[]interface{}{RosterQuery{}}}
 	exp := `<iq from="from" xml:lang="en"><query xmlns="` +
 		NsRoster + `"></query></iq>`
 	assertMarshal(t, exp, iq)
@@ -26,7 +27,8 @@ func TestRosterIqUnmarshal(t *testing.T) {
 	r := strings.NewReader(str)
 	var st Stanza = &Iq{}
 	xml.Unmarshal(r, st)
-	err := parseExtended(st, newRosterQuery)
+	m := map[string] func(*xml.Name) interface{}{NsRoster: newRosterQuery}
+	err := parseExtended(st, m)
 	if err != nil {
 		t.Fatalf("parseExtended: %v", err)
 	}
@@ -37,7 +39,12 @@ func TestRosterIqUnmarshal(t *testing.T) {
 	if nested == nil {
 		t.Fatalf("nested nil")
 	}
-	rq, ok := nested.(*RosterQuery)
+	if len(nested) != 1 {
+		t.Fatalf("wrong size nested(%d): %v", len(nested),
+			nested)
+	}
+	var rq *RosterQuery
+	rq, ok := nested[0].(*RosterQuery)
 	if !ok {
 		t.Fatalf("nested not RosterQuery: %v",
 			reflect.TypeOf(nested))

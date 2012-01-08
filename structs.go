@@ -93,11 +93,10 @@ type Stanza interface {
 	GetLang() string
 	// A nested error element, if any.
 	GetError() *Error
-	// A (non-error) nested element, if any.
-	// BUG(cjyar) This should return a slice.
-	GetNested() interface{}
-	setNested(interface{})
-	generic() *Generic
+	// Zero or more (non-error) nested elements. These will be in
+	// namespaces managed by extensions.
+	GetNested() []interface{}
+	addNested(interface{})
 	innerxml() string
 }
 
@@ -113,8 +112,7 @@ type Message struct {
 	Subject *Generic
 	Body *Generic
 	Thread *Generic
-	Any *Generic
-	Nested interface{}
+	Nested []interface{}
 }
 var _ xml.Marshaler = &Message{}
 var _ Stanza = &Message{}
@@ -131,8 +129,7 @@ type Presence struct {
 	Show *Generic
 	Status *Generic
 	Priority *Generic
-	Any *Generic
-	Nested interface{}
+	Nested []interface{}
 }
 var _ xml.Marshaler = &Presence{}
 var _ Stanza = &Presence{}
@@ -146,8 +143,7 @@ type Iq struct {
 	Lang string `xml:"attr"`
 	Innerxml string `xml:"innerxml"`
 	Error *Error
-	Any *Generic
-	Nested interface{}
+	Nested []interface{}
 }
 var _ xml.Marshaler = &Iq{}
 var _ Stanza = &Iq{}
@@ -335,10 +331,10 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 			return nil, err
 		}
 	}
-	if st.GetNested() != nil {
-		xml.Marshal(buf, st.GetNested())
-	} else if st.generic() != nil {
-		xml.Marshal(buf, st.generic())
+	if nested := st.GetNested() ; nested != nil {
+		for _, n := range(nested) {
+			xml.Marshal(buf, n)
+		}
 	} else if st.innerxml() != "" {
 		buf.WriteString(st.innerxml())
 	}
@@ -383,16 +379,12 @@ func (m *Message) GetError() *Error {
 	return m.Error
 }
 
-func (m *Message) GetNested() interface{} {
+func (m *Message) GetNested() []interface{} {
 	return m.Nested
 }
 
-func (m *Message) setNested(n interface{}) {
-	m.Nested = n
-}
-
-func (m *Message) generic() *Generic {
-	return m.Any
+func (m *Message) addNested(n interface{}) {
+	m.Nested = append(m.Nested, n)
 }
 
 func (m *Message) innerxml() string {
@@ -431,16 +423,12 @@ func (p *Presence) GetError() *Error {
 	return p.Error
 }
 
-func (p *Presence) GetNested() interface{} {
+func (p *Presence) GetNested() []interface{} {
 	return p.Nested
 }
 
-func (p *Presence) setNested(n interface{}) {
-	p.Nested = n
-}
-
-func (p *Presence) generic() *Generic {
-	return p.Any
+func (p *Presence) addNested(n interface{}) {
+	p.Nested = append(p.Nested, n)
 }
 
 func (p *Presence) innerxml() string {
@@ -479,16 +467,12 @@ func (iq *Iq) GetError() *Error {
 	return iq.Error
 }
 
-func (iq *Iq) GetNested() interface{} {
+func (iq *Iq) GetNested() []interface{} {
 	return iq.Nested
 }
 
-func (iq *Iq) setNested(n interface{}) {
-	iq.Nested = n
-}
-
-func (iq *Iq) generic() *Generic {
-	return iq.Any
+func (iq *Iq) addNested(n interface{}) {
+	iq.Nested = append(iq.Nested, n)
 }
 
 func (iq *Iq) innerxml() string {
