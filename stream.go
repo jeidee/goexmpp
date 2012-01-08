@@ -404,7 +404,7 @@ func (cl *Client) waitForSocket() {
 	cl.socketSync.Done()
 }
 
-// BUG(cjyar) Doesn't implement TLS/SASL EXTERNAL.
+// BUG(cjyar): Doesn't implement TLS/SASL EXTERNAL.
 func (cl *Client) chooseSasl(fe *Features) {
 	var digestMd5 bool
 	for _, m := range(fe.Mechanisms.Mechanism) {

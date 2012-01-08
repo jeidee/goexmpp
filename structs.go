@@ -94,6 +94,7 @@ type Stanza interface {
 	// A nested error element, if any.
 	GetError() *Error
 	// A (non-error) nested element, if any.
+	// BUG(cjyar) This should return a slice.
 	GetNested() interface{}
 	setNested(interface{})
 	generic() *Generic

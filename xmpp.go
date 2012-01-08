@@ -96,7 +96,7 @@ type Client struct {
 }
 var _ io.Closer = &Client{}
 
-// BUG(cjyar) Replace extStanza with a generalized extension interface
+// BUG(cjyar): Replace extStanza with a generalized extension interface
 // that handles starting filters, registering extended stanzes, and
 // anything else an extension has to do.
 
