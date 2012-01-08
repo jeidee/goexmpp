@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 )
 
 // Demonstrate the API, and allow the user to interact with an XMPP
@@ -48,9 +47,20 @@ func main() {
 		fmt.Println("done reading")
 	}(c.In)
 
-	time.Sleep(1e9 * 5)
-	fmt.Println("Shutting down.")
-	close(c.Out)
-	time.Sleep(1e9 * 5)
-	select {}
+	p := make([]byte, 1024)
+	for {
+		nr, _ := os.Stdin.Read(p)
+		if nr == 0 {
+			break
+		}
+		s := string(p)
+		stan, err := xmpp.ParseStanza(s)
+		if err == nil {
+			c.Out <- stan
+		} else {
+			fmt.Printf("Parse error: %v\n", err)
+			break
+		}
+	}
+	fmt.Println("done sending")
 }
