@@ -13,10 +13,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"sync"
+	"syslog"
 	"xml"
 )
 
@@ -36,12 +36,14 @@ const (
 	// DNS SRV names
 	serverSrv = "xmpp-server"
 	clientSrv = "xmpp-client"
+)
 
-	// BUG(cjyar) Make this a parameter to NewClient, not a
-	// constant. We should have both a log level and a
-	// syslog.Writer, so the app can control how much time we
-	// spend generating log messages, as well as where they go.
-	debug = false
+var (
+	// If non-nil when NewClient() is called, log messages will be
+	// sent to this writer.
+	Log *syslog.Writer
+	// Threshold for which messages are logged.
+	Loglevel syslog.Priority = syslog.LOG_NOTICE
 )
 
 // This channel may be used as a convenient way to generate a unique
@@ -239,7 +241,7 @@ func (cl *Client) startFilter(srvIn <-chan Stanza) <-chan Stanza {
 func tee(r io.Reader, w io.Writer, prefix string) {
 	defer tryClose(r, w)
 
-	buf := bytes.NewBuffer(nil)
+	buf := bytes.NewBuffer([]uint8(prefix))
 	for {
 		var c [1]byte
 		n, _ := r.Read(c[:])
@@ -252,13 +254,13 @@ func tee(r io.Reader, w io.Writer, prefix string) {
 		}
 		buf.Write(c[:n])
 		if c[0] == '\n' || c[0] == '>' {
-			fmt.Printf("%s%s\n", prefix, buf.String())
+			Log.Debug(buf.String())
 			buf.Reset()
 		}
 	}
 	leftover := buf.String()
 	if leftover != "" {
-		fmt.Printf("%s%s\n", prefix, leftover)
+		Log.Debug(buf.String())
 	}
 }
 
@@ -307,7 +309,10 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 	ch := make(chan os.Error)
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {
-			log.Printf("Can't start session: %v", st)
+			if Log != nil {
+				Log.Err(fmt.Sprintf("Can't start session: %v",
+					st))
+			}
 			ch <- st.GetError()
 			return false
 		}

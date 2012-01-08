@@ -18,11 +18,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"regexp"
 	"strings"
+	"syslog"
 	"time"
 	"xml"
 )
@@ -52,12 +52,16 @@ func (cl *Client) readTransport(w io.Writer) {
 					continue
 				}
 			}
-			log.Printf("read: %s", err.String())
+			if Log != nil {
+				Log.Err("read: " + err.String())
+			}
 			break
 		}
 		nw, err := w.Write(p[:nr])
 		if nw < nr {
-			log.Println("read: %s", err.String())
+			if Log != nil {
+				Log.Err("read: " + err.String())
+			}
 			break
 		}
 	}
@@ -69,12 +73,16 @@ func (cl *Client) writeTransport(r io.Reader) {
 	for {
 		nr, err := r.Read(p)
 		if nr == 0 {
-			log.Printf("write: %s", err.String())
+			if Log != nil {
+				Log.Err("write: " + err.String())
+			}
 			break
 		}
 		nw, err := cl.socket.Write(p[:nr])
 		if nw < nr {
-			log.Println("write: %s", err.String())
+			if Log != nil {
+				Log.Err("write: " + err.String())
+			}
 			break
 		}
 	}
@@ -82,7 +90,7 @@ func (cl *Client) writeTransport(r io.Reader) {
 
 func readXml(r io.Reader, ch chan<- interface{},
 	extStanza map[string] func(*xml.Name) interface{}) {
-	if debug {
+	if Loglevel >= syslog.LOG_DEBUG {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
 		r = pr
@@ -95,7 +103,9 @@ func readXml(r io.Reader, ch chan<- interface{},
 		t, err := p.Token()
 		if t == nil {
 			if err != os.EOF {
-				log.Printf("read: %v", err)
+				if Log != nil {
+					Log.Err("read: " + err.String())
+				}
 			}
 			break
 		}
@@ -111,8 +121,10 @@ func readXml(r io.Reader, ch chan<- interface{},
 		case NsStream + " stream":
 			st, err := parseStream(se)
 			if err != nil {
-				log.Printf("unmarshal stream: %v",
-					err)
+				if Log != nil {
+					Log.Err("unmarshal stream: " +
+						err.String())
+				}
 				break
 			}
 			ch <- st
@@ -134,14 +146,18 @@ func readXml(r io.Reader, ch chan<- interface{},
 			obj = &Presence{}
 		default:
 			obj = &Generic{}
-			log.Printf("Ignoring unrecognized: %s %s\n",
-				se.Name.Space, se.Name.Local)
+			if Log != nil {
+				Log.Notice("Ignoring unrecognized: " +
+					se.Name.Space + " " + se.Name.Local)
+			}
 		}
 
 		// Read the complete XML stanza.
 		err = p.Unmarshal(obj, &se)
 		if err != nil {
-			log.Printf("unmarshal: %v", err)
+			if Log != nil {
+				Log.Err("unmarshal: " + err.String())
+			}
 			break
 		}
 
@@ -151,8 +167,10 @@ func readXml(r io.Reader, ch chan<- interface{},
 		if st, ok := obj.(Stanza) ; ok {
 			err = parseExtended(st, extStanza)
 			if err != nil {
-				log.Printf("ext unmarshal: %v",
-					err)
+				if Log != nil {
+					Log.Err("ext unmarshal: " +
+						err.String())
+				}
 				break
 			}
 		}
@@ -195,7 +213,7 @@ func parseExtended(st Stanza, extStanza map[string] func(*xml.Name) interface{})
 }
 
 func writeXml(w io.Writer, ch <-chan interface{}) {
-	if debug {
+	if Loglevel >= syslog.LOG_DEBUG {
 		pr, pw := io.Pipe()
 		go tee(pr, w, "C: ")
 		w = pw
@@ -205,7 +223,9 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	for obj := range ch {
 		err := xml.Marshal(w, obj)
 		if err != nil {
-			log.Printf("write: %v", err)
+			if Log != nil {
+				Log.Err("write: " + err.String())
+			}
 			break
 		}
 	}
@@ -243,8 +263,10 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 			}
 			st, ok := x.(Stanza)
 			if !ok {
-				log.Printf("Unhandled non-stanza: %v",
-					x)
+				if Log != nil {
+					Log.Warning(fmt.Sprintf(
+						"Unhandled non-stanza: %v", x))
+				}
 				continue
 			}
 			if handlers[st.GetId()] != nil {
@@ -281,7 +303,10 @@ func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
 			}
 		case x := <- input:
 			if x == nil {
-				log.Println("Refusing to send nil stanza")
+				if Log != nil {
+					Log.Notice("Refusing to send" +
+						" nil stanza")
+				}
 				continue
 			}
 			srvOut <- x
@@ -298,7 +323,9 @@ func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
 		select {
 		case newFilterOut := <- filterOut:
 			if newFilterOut == nil {
-				log.Println("Received nil filter")
+				if Log != nil {
+					Log.Warning("Received nil filter")
+				}
 				filterIn <- nil
 				continue
 			}
@@ -325,7 +352,9 @@ func handleStream(ss *stream) {
 }
 
 func (cl *Client) handleStreamError(se *streamError) {
-	log.Printf("Received stream error: %v", se)
+	if Log != nil {
+		Log.Notice(fmt.Sprintf("Received stream error: %v", se))
+	}
 	cl.Close()
 }
 
@@ -374,7 +403,9 @@ func (cl *Client) handleTls(t *starttls) {
 	// reader doesn't get woken up unnecessarily.
 	tcp.SetReadTimeout(0)
 
-	log.Println("TLS negotiation succeeded.")
+	if Log != nil {
+		Log.Info("TLS negotiation succeeded.")
+	}
 	cl.Features = nil
 
 	// Now re-send the initial handshake message to start the new
@@ -421,8 +452,10 @@ func (cl *Client) handleSasl(srv *auth) {
 		b64 := base64.StdEncoding
 		str, err := b64.DecodeString(srv.Chardata)
 		if err != nil {
-			log.Printf("SASL challenge decode: %s",
-				err.String())
+			if Log != nil {
+				Log.Err("SASL challenge decode: " +
+					err.String())
+			}
 			return;
 		}
 		srvMap := parseSasl(string(str))
@@ -433,9 +466,13 @@ func (cl *Client) handleSasl(srv *auth) {
 			cl.saslDigest2(srvMap)
 		}
 	case "failure":
-		log.Println("SASL authentication failed")
+		if Log != nil {
+			Log.Notice("SASL authentication failed")
+		}
 	case "success":
-		log.Println("SASL authentication succeeded")
+		if Log != nil {
+			Log.Info("Sasl authentication succeeded")
+		}
 		cl.Features = nil
 		ss := &stream{To: cl.Jid.Domain, Version: Version}
 		cl.xmlOut <- ss
@@ -451,7 +488,9 @@ func (cl *Client) saslDigest1(srvMap map[string] string) {
 		}
 	}
 	if !hasAuth {
-		log.Println("Server doesn't support SASL auth")
+		if Log != nil {
+			Log.Err("Server doesn't support SASL auth")
+		}
 		return;
 	}
 
@@ -481,7 +520,9 @@ func (cl *Client) saslDigest1(srvMap map[string] string) {
 	randSize.Lsh(big.NewInt(1), 64)
 	cnonce, err := rand.Int(rand.Reader, randSize)
 	if err != nil {
-		log.Println("SASL rand: %s", err.String())
+		if Log != nil {
+			Log.Err("SASL rand: " + err.String())
+		}
 		return
 	}
 	cnonceStr := fmt.Sprintf("%016x", cnonce)
@@ -591,7 +632,9 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	msg := &Iq{Type: "set", Id: <- Id, Nested: []interface{}{bindReq}}
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {
-			log.Println("Resource binding failed")
+			if Log != nil {
+				Log.Err("Resource binding failed")
+			}
 			return false
 		}
 		var bindRepl *bindIq
@@ -602,21 +645,30 @@ func (cl *Client) bind(bindAdv *bindIq) {
 			}
 		}
 		if bindRepl == nil {
-			log.Printf("bad bind reply: %v", st)
+			if Log != nil {
+				Log.Err(fmt.Sprintf("Bad bind reply: %v",
+					st))
+			}
 			return false
 		}
 		jidStr := bindRepl.Jid
 		if jidStr == nil || *jidStr == "" {
-			log.Println("empty resource")
+			if Log != nil {
+				Log.Err("Can't bind empty resource")
+			}
 			return false
 		}
 		jid := new(JID)
 		if !jid.Set(*jidStr) {
-			log.Println("Can't parse JID %s", jidStr)
+			if Log != nil {
+				Log.Err("Can't parse JID " + *jidStr)
+			}
 			return false
 		}
 		cl.Jid = *jid
-		log.Printf("Bound resource: %s", cl.Jid.String())
+		if Log != nil {
+			Log.Info("Bound resource: " + cl.Jid.String())
+		}
 		cl.bindDone()
 		return false
 	}
