@@ -80,6 +80,7 @@ type Client struct {
 	// the time StartSession() returns.
 	Jid JID
 	password string
+	tcp net.Conn
 	socket net.Conn
 	socketSync sync.WaitGroup
 	saslExpected string
@@ -102,7 +103,6 @@ type Client struct {
 	filterOut chan<- <-chan Stanza
 	filterIn <-chan <-chan Stanza
 }
-var _ io.Closer = &Client{}
 
 // Connect to the appropriate server and authenticate as the given JID
 // with the given password. This function will return as soon as a TCP
@@ -147,6 +147,7 @@ func NewClient(jid *JID, password string, exts []Extension) (*Client,
 	cl.Uid = <- Id
 	cl.password = password
 	cl.Jid = *jid
+	cl.tcp = tcp
 	cl.socket = tcp
 	cl.handlers = make(chan *stanzaHandler, 100)
 	cl.inputControl = make(chan int)
@@ -186,11 +187,6 @@ func NewClient(jid *JID, password string, exts []Extension) (*Client,
 	cl.xmlOut <- hsOut
 
 	return cl, nil
-}
-
-func (c *Client) Close() os.Error {
-	tryClose(c.In, c.Out)
-	return nil
 }
 
 func (cl *Client) startTransport() (io.Reader, io.Writer) {

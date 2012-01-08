@@ -38,6 +38,7 @@ type stanzaHandler struct {
 // probably either all be receivers, or none.
 
 func (cl *Client) readTransport(w io.Writer) {
+	defer fmt.Println("readTransport done")
 	defer tryClose(cl.socket, w)
 	cl.socket.SetReadTimeout(1e8)
 	p := make([]byte, 1024)
@@ -68,6 +69,7 @@ func (cl *Client) readTransport(w io.Writer) {
 }
 
 func (cl *Client) writeTransport(r io.Reader) {
+	defer fmt.Println("writeTransport done")
 	defer tryClose(r, cl.socket)
 	p := make([]byte, 1024)
 	for {
@@ -90,6 +92,7 @@ func (cl *Client) writeTransport(r io.Reader) {
 
 func readXml(r io.Reader, ch chan<- interface{},
 	extStanza map[string] func(*xml.Name) interface{}) {
+	defer fmt.Println("readXml done")
 	if Loglevel >= syslog.LOG_DEBUG {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
@@ -98,6 +101,7 @@ func readXml(r io.Reader, ch chan<- interface{},
 	defer tryClose(r, ch)
 
 	p := xml.NewParser(r)
+Loop:
 	for {
 		// Sniff the next token on the stream.
 		t, err := p.Token()
@@ -125,7 +129,7 @@ func readXml(r io.Reader, ch chan<- interface{},
 					Log.Err("unmarshal stream: " +
 						err.String())
 				}
-				break
+				break Loop
 			}
 			ch <- st
 			continue
@@ -158,7 +162,7 @@ func readXml(r io.Reader, ch chan<- interface{},
 			if Log != nil {
 				Log.Err("unmarshal: " + err.String())
 			}
-			break
+			break Loop
 		}
 
 		// If it's a Stanza, we try to unmarshal its innerxml
@@ -171,7 +175,7 @@ func readXml(r io.Reader, ch chan<- interface{},
 					Log.Err("ext unmarshal: " +
 						err.String())
 				}
-				break
+				break Loop
 			}
 		}
 
@@ -232,16 +236,19 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 }
 
 func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
+	defer fmt.Println("readStream done")
+	defer close(cliOut)
 	defer tryClose(srvIn, cliOut)
 
 	handlers := make(map[string] func(Stanza) bool)
+Loop:
 	for {
 		select {
 		case h := <- cl.handlers:
 			handlers[h.id] = h.f
-		case x := <- srvIn:
-			if x == nil {
-				break
+		case x, ok := <- srvIn:
+			if !ok {
+				break Loop
 			}
 			send := false
 			switch obj := x.(type) {
@@ -287,9 +294,11 @@ func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 // activity.
 func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
 	control <-chan int) {
-	defer tryClose(srvOut, cliIn)
+	defer fmt.Println("writeStream done")
+	defer close(srvOut)
 
 	var input <-chan Stanza
+Loop:
 	for {
 		select {
 		case status := <- control:
@@ -299,9 +308,13 @@ func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
 			case 1:
 				input = cliIn
 			case -1:
-				break
+				break Loop
 			}
-		case x := <- input:
+		case x, ok := <- input:
+			if !ok {
+				fmt.Println("writeStream input closed")
+				break Loop
+			}
 			if x == nil {
 				if Log != nil {
 					Log.Notice("Refusing to send" +
@@ -318,7 +331,9 @@ func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
 // app. This function manages the filters.
 func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
 	topFilter <-chan Stanza, app chan<- Stanza) {
+	defer fmt.Println("filterTop done")
 	defer close(app)
+Loop:
 	for {
 		select {
 		case newFilterOut := <- filterOut:
@@ -334,7 +349,7 @@ func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
 
 		case data, ok := <-topFilter:
 			if !ok {
-				break
+				break Loop
 			}
 			app <- data
 		}
@@ -342,6 +357,7 @@ func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
 }
 
 func filterBottom(from <-chan Stanza, to chan<- Stanza) {
+	defer fmt.Println("filterBottom done")
 	defer close(to)
 	for data := range(from) {
 		to <- data
@@ -355,7 +371,7 @@ func (cl *Client) handleStreamError(se *streamError) {
 	if Log != nil {
 		Log.Notice(fmt.Sprintf("Received stream error: %v", se))
 	}
-	cl.Close()
+	close(cl.Out)
 }
 
 func (cl *Client) handleFeatures(fe *Features) {
@@ -398,10 +414,6 @@ func (cl *Client) handleTls(t *starttls) {
 	cl.socketSync.Add(1)
 	cl.socket = tls
 	cl.socketSync.Wait()
-
-	// Reset the read timeout on the (underlying) socket so the
-	// reader doesn't get woken up unnecessarily.
-	tcp.SetReadTimeout(0)
 
 	if Log != nil {
 		Log.Info("TLS negotiation succeeded.")
