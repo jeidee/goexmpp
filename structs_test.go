@@ -136,3 +136,10 @@ func TestParseStanza(t *testing.T) {
 	}
 	assertEquals(t, "presence", st.GetName())
 }
+
+func TestMarshalEscaping(t *testing.T) {
+	msg := &Message{Body: &Generic{XMLName: xml.Name{Local: "body"},
+		Chardata: `&<!-- "`}}
+	exp := `<message><body>&amp;&lt;!-- &#34;</body></message>`
+	assertMarshal(t, exp, msg)
+}
