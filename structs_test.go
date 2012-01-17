@@ -71,7 +71,7 @@ func TestStreamErrorMarshal(t *testing.T) {
 	name := xml.Name{Space: NsStreams, Local: "ack"}
 	e := &streamError{Any: Generic{XMLName: name}}
 	exp := `<stream:error><ack xmlns="` + NsStreams +
-		`"></ack></stream:error>`;
+		`"></ack></stream:error>`
 	assertMarshal(t, exp, e)
 
 	txt := errText{Lang: "pt", Text: "things happen"}
@@ -83,9 +83,8 @@ func TestStreamErrorMarshal(t *testing.T) {
 }
 
 func TestIqMarshal(t *testing.T) {
-	iq := &Iq{Type: "set", Id: "3", Nested:
-		[]interface{}{Generic{XMLName: xml.Name{Space: NsBind,
-				Local: "bind"}}}}
+	iq := &Iq{Type: "set", Id: "3", Nested: []interface{}{Generic{XMLName: xml.Name{Space: NsBind,
+		Local: "bind"}}}}
 	exp := `<iq id="3" type="set"><bind xmlns="` + NsBind +
 		`"></bind></iq>`
 	assertMarshal(t, exp, iq)

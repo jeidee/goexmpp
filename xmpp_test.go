@@ -16,8 +16,8 @@ import (
 func TestReadError(t *testing.T) {
 	r := strings.NewReader(`<stream:error><bad-foo/></stream:error>`)
 	ch := make(chan interface{})
-	go readXml(r, ch, make(map[string] func(*xml.Name) interface{}))
-	x := <- ch
+	go readXml(r, ch, make(map[string]func(*xml.Name) interface{}))
+	x := <-ch
 	se, ok := x.(*streamError)
 	if !ok {
 		t.Fatalf("not StreamError: %v", reflect.TypeOf(x))
@@ -32,8 +32,8 @@ func TestReadError(t *testing.T) {
 		`<text xml:lang="en" xmlns="` + NsStreams +
 		`">Error text</text></stream:error>`)
 	ch = make(chan interface{})
-	go readXml(r, ch, make(map[string] func(*xml.Name) interface{}))
-	x = <- ch
+	go readXml(r, ch, make(map[string]func(*xml.Name) interface{}))
+	x = <-ch
 	se, ok = x.(*streamError)
 	if !ok {
 		t.Fatalf("not StreamError: %v", reflect.TypeOf(x))
@@ -50,8 +50,8 @@ func TestReadStream(t *testing.T) {
 		`xmlns="jabber:client" xmlns:stream="` + NsStream +
 		`" version="1.0">`)
 	ch := make(chan interface{})
-	go readXml(r, ch, make(map[string] func(*xml.Name) interface{}))
-	x := <- ch
+	go readXml(r, ch, make(map[string]func(*xml.Name) interface{}))
+	x := <-ch
 	ss, ok := x.(*stream)
 	if !ok {
 		t.Fatalf("not stream: %v", reflect.TypeOf(x))
@@ -78,15 +78,12 @@ func testWrite(obj interface{}) string {
 }
 
 func TestWriteError(t *testing.T) {
-	se := &streamError{Any: Generic{XMLName: xml.Name{Local:
-				"blah"}}}
+	se := &streamError{Any: Generic{XMLName: xml.Name{Local: "blah"}}}
 	str := testWrite(se)
 	exp := `<stream:error><blah></blah></stream:error>`
 	assertEquals(t, exp, str)
 
-	se = &streamError{Any: Generic{XMLName: xml.Name{Space:
-				NsStreams, Local: "foo"}}, Text:
-		&errText{Lang: "ru", Text: "Пошёл ты"}}
+	se = &streamError{Any: Generic{XMLName: xml.Name{Space: NsStreams, Local: "foo"}}, Text: &errText{Lang: "ru", Text: "Пошёл ты"}}
 	str = testWrite(se)
 	exp = `<stream:error><foo xmlns="` + NsStreams +
 		`"></foo><text xmlns="` + NsStreams +
@@ -95,8 +92,7 @@ func TestWriteError(t *testing.T) {
 }
 
 func TestWriteStream(t *testing.T) {
-	ss := &stream{To: "foo.org", From: "bar.com", Id: "42", Lang:
-		"en", Version: "1.0"}
+	ss := &stream{To: "foo.org", From: "bar.com", Id: "42", Lang: "en", Version: "1.0"}
 	str := testWrite(ss)
 	exp := `<stream:stream xmlns="jabber:client"` +
 		` xmlns:stream="` + NsStream + `" to="foo.org"` +

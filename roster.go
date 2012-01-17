@@ -12,32 +12,30 @@ import (
 
 // This file contains support for roster management, RFC 3921, Section 7.
 
-var rosterExt Extension = Extension{StanzaHandlers:
-	map[string] func(*xml.Name) interface{}{NsRoster:
-		newRosterQuery}, Start: startRosterFilter}
+var rosterExt Extension = Extension{StanzaHandlers: map[string]func(*xml.Name) interface{}{NsRoster: newRosterQuery}, Start: startRosterFilter}
 
 // Roster query/result
 type RosterQuery struct {
 	XMLName xml.Name `xml:"jabber:iq:roster query"`
-	Item []RosterItem
+	Item    []RosterItem
 }
 
 // See RFC 3921, Section 7.1.
 type RosterItem struct {
-	XMLName xml.Name `xml:"item"`
-	Jid string `xml:"attr"`
-	Subscription string `xml:"attr"`
-	Name string `xml:"attr"`
-	Group []string
+	XMLName      xml.Name `xml:"item"`
+	Jid          string   `xml:"attr"`
+	Subscription string   `xml:"attr"`
+	Name         string   `xml:"attr"`
+	Group        []string
 }
 
 type rosterClient struct {
-	rosterChan <-chan []RosterItem
+	rosterChan   <-chan []RosterItem
 	rosterUpdate chan<- RosterItem
 }
 
 var (
-	rosterClients = make(map[string] rosterClient)
+	rosterClients = make(map[string]rosterClient)
 )
 
 // Implicitly becomes part of NewClient's extStanza arg.
@@ -51,7 +49,7 @@ func newRosterQuery(name *xml.Name) interface{} {
 func fetchRoster(client *Client) os.Error {
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
-	iq := &Iq{From: client.Jid.String(), Id: <- Id, Type: "get",
+	iq := &Iq{From: client.Jid.String(), Id: <-Id, Type: "get",
 		Nested: []interface{}{RosterQuery{}}}
 	ch := make(chan os.Error)
 	f := func(st Stanza) bool {
@@ -61,8 +59,8 @@ func fetchRoster(client *Client) os.Error {
 			return false
 		}
 		var rq *RosterQuery
-		for _, ele := range(st.GetNested()) {
-			if q, ok := ele.(*RosterQuery) ; ok {
+		for _, ele := range st.GetNested() {
+			if q, ok := ele.(*RosterQuery); ok {
 				rq = q
 				break
 			}
@@ -72,7 +70,7 @@ func fetchRoster(client *Client) os.Error {
 				"Roster query result not query: %v", st))
 			return false
 		}
-		for _, item := range(rq.Item) {
+		for _, item := range rq.Item {
 			rosterUpdate <- item
 		}
 		ch <- nil
@@ -81,7 +79,7 @@ func fetchRoster(client *Client) os.Error {
 	client.HandleStanza(iq.Id, f)
 	client.Out <- iq
 	// Wait for f to complete.
-	return <- ch
+	return <-ch
 }
 
 // The roster filter updates the Client's representation of the
@@ -93,7 +91,7 @@ func startRosterFilter(client *Client) {
 	in := client.AddFilter(out)
 	go func(in <-chan Stanza, out chan<- Stanza) {
 		defer close(out)
-		for st := range(in) {
+		for st := range in {
 			maybeUpdateRoster(client, st)
 			out <- st
 		}
@@ -110,25 +108,24 @@ func maybeUpdateRoster(client *Client, st Stanza) {
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
 	var rq *RosterQuery
-	for _, ele := range(st.GetNested()) {
-		if q, ok := ele.(*RosterQuery) ; ok {
+	for _, ele := range st.GetNested() {
+		if q, ok := ele.(*RosterQuery); ok {
 			rq = q
 			break
 		}
 	}
 	if st.GetName() == "iq" && st.GetType() == "set" && rq != nil {
-		for _, item := range(rq.Item) {
+		for _, item := range rq.Item {
 			rosterUpdate <- item
 		}
 		// Send a reply.
-		iq := &Iq{To: st.GetFrom(), Id: st.GetId(), Type:
-			"result"}
+		iq := &Iq{To: st.GetFrom(), Id: st.GetId(), Type: "result"}
 		client.Out <- iq
 	}
 }
 
 func feedRoster(rosterCh chan<- []RosterItem, rosterUpdate <-chan RosterItem) {
-	roster := make(map[string] RosterItem)
+	roster := make(map[string]RosterItem)
 	snapshot := []RosterItem{}
 	for {
 		select {
@@ -141,7 +138,7 @@ func feedRoster(rosterCh chan<- []RosterItem, rosterUpdate <-chan RosterItem) {
 		case rosterCh <- snapshot:
 		}
 		snapshot = make([]RosterItem, 0, len(roster))
-		for _, v := range(roster) {
+		for _, v := range roster {
 			snapshot = append(snapshot, v)
 		}
 	}
@@ -150,5 +147,5 @@ func feedRoster(rosterCh chan<- []RosterItem, rosterUpdate <-chan RosterItem) {
 // Retrieve a snapshot of the roster for the given Client.
 func Roster(client *Client) []RosterItem {
 	rosterChan := rosterClients[client.Uid].rosterChan
-	return <- rosterChan
+	return <-rosterChan
 }

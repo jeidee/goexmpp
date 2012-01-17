@@ -23,12 +23,12 @@ const (
 
 	// Various XML namespaces.
 	NsStreams = "urn:ietf:params:xml:ns:xmpp-streams"
-	NsStream = "http://etherx.jabber.org/streams"
-	NsTLS = "urn:ietf:params:xml:ns:xmpp-tls"
-	NsSASL = "urn:ietf:params:xml:ns:xmpp-sasl"
-	NsBind = "urn:ietf:params:xml:ns:xmpp-bind"
+	NsStream  = "http://etherx.jabber.org/streams"
+	NsTLS     = "urn:ietf:params:xml:ns:xmpp-tls"
+	NsSASL    = "urn:ietf:params:xml:ns:xmpp-sasl"
+	NsBind    = "urn:ietf:params:xml:ns:xmpp-bind"
 	NsSession = "urn:ietf:params:xml:ns:xmpp-session"
-	NsRoster = "jabber:iq:roster"
+	NsRoster  = "jabber:iq:roster"
 
 	// DNS SRV names
 	serverSrv = "xmpp-server"
@@ -63,8 +63,8 @@ func init() {
 
 // Extensions can add stanza filters and/or new XML element types.
 type Extension struct {
-	StanzaHandlers map[string] func(*xml.Name) interface{}
-	Start func(*Client)
+	StanzaHandlers map[string]func(*xml.Name) interface{}
+	Start          func(*Client)
 }
 
 // The client in a client-server XMPP connection.
@@ -75,13 +75,13 @@ type Client struct {
 	Uid string
 	// This client's JID. This will be updated asynchronously by
 	// the time StartSession() returns.
-	Jid JID
-	password string
-	socket net.Conn
-	socketSync sync.WaitGroup
+	Jid          JID
+	password     string
+	socket       net.Conn
+	socketSync   sync.WaitGroup
 	saslExpected string
-	authDone bool
-	handlers chan *stanzaHandler
+	authDone     bool
+	handlers     chan *stanzaHandler
 	inputControl chan int
 	// Incoming XMPP stanzas from the server will be published on
 	// this channel. Information which is only used by this
@@ -89,15 +89,15 @@ type Client struct {
 	In <-chan Stanza
 	// Outgoing XMPP stanzas to the server should be sent to this
 	// channel.
-	Out chan<- Stanza
+	Out    chan<- Stanza
 	xmlOut chan<- interface{}
 	// Features advertised by the remote. This will be updated
 	// asynchronously as new features are received throughout the
 	// connection process. It should not be updated once
 	// StartSession() returns.
-	Features *Features
+	Features  *Features
 	filterOut chan<- <-chan Stanza
-	filterIn <-chan <-chan Stanza
+	filterIn  <-chan <-chan Stanza
 }
 
 // Connect to the appropriate server and authenticate as the given JID
@@ -107,7 +107,7 @@ type Client struct {
 // send operation to Client.Out will block until negotiation (resource
 // binding) is complete.
 func NewClient(jid *JID, password string, exts []Extension) (*Client,
-	os.Error) {
+os.Error) {
 	// Include the mandatory extensions.
 	exts = append(exts, rosterExt)
 	exts = append(exts, bindExt)
@@ -140,16 +140,16 @@ func NewClient(jid *JID, password string, exts []Extension) (*Client,
 	}
 
 	cl := new(Client)
-	cl.Uid = <- Id
+	cl.Uid = <-Id
 	cl.password = password
 	cl.Jid = *jid
 	cl.socket = tcp
 	cl.handlers = make(chan *stanzaHandler, 100)
 	cl.inputControl = make(chan int)
 
-	extStanza := make(map[string] func(*xml.Name) interface{})
-	for _, ext := range(exts) {
-		for k, v := range(ext.StanzaHandlers) {
+	extStanza := make(map[string]func(*xml.Name) interface{})
+	for _, ext := range exts {
+		for k, v := range ext.StanzaHandlers {
 			extStanza[k] = v
 		}
 	}
@@ -173,7 +173,7 @@ func NewClient(jid *JID, password string, exts []Extension) (*Client,
 	cl.In = clIn
 
 	// Add filters for our extensions.
-	for _, ext := range(exts) {
+	for _, ext := range exts {
 		ext.Start(cl)
 	}
 
@@ -193,7 +193,7 @@ func (cl *Client) startTransport() (io.Reader, io.WriteCloser) {
 }
 
 func startXmlReader(r io.Reader,
-	extStanza map[string] func(*xml.Name) interface{}) <-chan interface{} {
+extStanza map[string]func(*xml.Name) interface{}) <-chan interface{} {
 	ch := make(chan interface{})
 	go readXml(r, ch, extStanza)
 	return ch
@@ -231,7 +231,7 @@ func (cl *Client) startFilter(srvIn <-chan Stanza) <-chan Stanza {
 
 func tee(r io.Reader, w io.Writer, prefix string) {
 	defer func(w io.Writer) {
-		if c, ok := w.(io.Closer) ; ok {
+		if c, ok := w.(io.Closer); ok {
 			c.Close()
 		}
 	}(w)
@@ -272,10 +272,8 @@ func (cl *Client) bindDone() {
 // presence. The presence can be as simple as a newly-initialized
 // Presence struct.  See RFC 3921, Section 3.
 func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
-	id := <- Id
-	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Nested:
-		[]interface{}{ Generic{XMLName: xml.Name{Space:
-					NsSession, Local: "session"}}}}
+	id := <-Id
+	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Nested: []interface{}{Generic{XMLName: xml.Name{Space: NsSession, Local: "session"}}}}
 	ch := make(chan os.Error)
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {
@@ -293,7 +291,7 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 	cl.Out <- iq
 
 	// Now wait until the callback is called.
-	if err := <- ch ; err != nil {
+	if err := <-ch; err != nil {
 		return err
 	}
 	if getRoster {
@@ -315,5 +313,5 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
 // channel closes, the filter should close its output channel.
 func (cl *Client) AddFilter(out <-chan Stanza) <-chan Stanza {
 	cl.filterOut <- out
-	return <- cl.filterIn
+	return <-cl.filterIn
 }

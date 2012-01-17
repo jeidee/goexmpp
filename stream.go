@@ -47,7 +47,7 @@ func (cl *Client) readTransport(w io.WriteCloser) {
 		}
 		nr, err := cl.socket.Read(p)
 		if nr == 0 {
-			if errno, ok := err.(*net.OpError) ; ok {
+			if errno, ok := err.(*net.OpError); ok {
 				if errno.Timeout() {
 					continue
 				}
@@ -89,7 +89,7 @@ func (cl *Client) writeTransport(r io.Reader) {
 }
 
 func readXml(r io.Reader, ch chan<- interface{},
-	extStanza map[string] func(*xml.Name) interface{}) {
+extStanza map[string]func(*xml.Name) interface{}) {
 	if Loglevel >= syslog.LOG_DEBUG {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
@@ -112,7 +112,7 @@ Loop:
 		}
 		var se xml.StartElement
 		var ok bool
-		if se, ok = t.(xml.StartElement) ; !ok {
+		if se, ok = t.(xml.StartElement); !ok {
 			continue
 		}
 
@@ -165,7 +165,7 @@ Loop:
 		// If it's a Stanza, we try to unmarshal its innerxml
 		// into objects of the appropriate respective
 		// types. This is specified by our extensions.
-		if st, ok := obj.(Stanza) ; ok {
+		if st, ok := obj.(Stanza); ok {
 			err = parseExtended(st, extStanza)
 			if err != nil {
 				if Log != nil {
@@ -181,7 +181,7 @@ Loop:
 	}
 }
 
-func parseExtended(st Stanza, extStanza map[string] func(*xml.Name) interface{}) os.Error {
+func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) os.Error {
 	// Now parse the stanza's innerxml to find the string that we
 	// can unmarshal this nested element from.
 	reader := strings.NewReader(st.innerxml())
@@ -194,8 +194,8 @@ func parseExtended(st Stanza, extStanza map[string] func(*xml.Name) interface{})
 		if err != nil {
 			return err
 		}
-		if se, ok := t.(xml.StartElement) ; ok {
-			if con, ok := extStanza[se.Name.Space] ; ok {
+		if se, ok := t.(xml.StartElement); ok {
+			if con, ok := extStanza[se.Name.Space]; ok {
 				// Call the indicated constructor.
 				nested := con(&se.Name)
 
@@ -220,7 +220,7 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 		w = pw
 	}
 	defer func(w io.Writer) {
-		if c, ok := w.(io.Closer) ; ok {
+		if c, ok := w.(io.Closer); ok {
 			c.Close()
 		}
 	}(w)
@@ -239,13 +239,13 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 	defer close(cliOut)
 
-	handlers := make(map[string] func(Stanza) bool)
+	handlers := make(map[string]func(Stanza) bool)
 Loop:
 	for {
 		select {
-		case h := <- cl.handlers:
+		case h := <-cl.handlers:
 			handlers[h.id] = h.f
-		case x, ok := <- srvIn:
+		case x, ok := <-srvIn:
 			if !ok {
 				break Loop
 			}
@@ -292,14 +292,14 @@ Loop:
 // with the server. The control channel controls this loop's
 // activity.
 func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
-	control <-chan int) {
+control <-chan int) {
 	defer close(srvOut)
 
 	var input <-chan Stanza
 Loop:
 	for {
 		select {
-		case status := <- control:
+		case status := <-control:
 			switch status {
 			case 0:
 				input = nil
@@ -308,7 +308,7 @@ Loop:
 			case -1:
 				break Loop
 			}
-		case x, ok := <- input:
+		case x, ok := <-input:
 			if !ok {
 				break Loop
 			}
@@ -327,12 +327,12 @@ Loop:
 // Stanzas from the remote go up through a stack of filters to the
 // app. This function manages the filters.
 func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
-	topFilter <-chan Stanza, app chan<- Stanza) {
+topFilter <-chan Stanza, app chan<- Stanza) {
 	defer close(app)
 Loop:
 	for {
 		select {
-		case newFilterOut := <- filterOut:
+		case newFilterOut := <-filterOut:
 			if newFilterOut == nil {
 				if Log != nil {
 					Log.Warning("Received nil filter")
@@ -354,7 +354,7 @@ Loop:
 
 func filterBottom(from <-chan Stanza, to chan<- Stanza) {
 	defer close(to)
-	for data := range(from) {
+	for data := range from {
 		to <- data
 	}
 }
@@ -443,7 +443,7 @@ func (cl *Client) waitForSocket() {
 // BUG(cjyar): Doesn't implement TLS/SASL EXTERNAL.
 func (cl *Client) chooseSasl(fe *Features) {
 	var digestMd5 bool
-	for _, m := range(fe.Mechanisms.Mechanism) {
+	for _, m := range fe.Mechanisms.Mechanism {
 		switch strings.ToLower(m) {
 		case "digest-md5":
 			digestMd5 = true
@@ -451,8 +451,7 @@ func (cl *Client) chooseSasl(fe *Features) {
 	}
 
 	if digestMd5 {
-		auth := &auth{XMLName: xml.Name{Space: NsSASL, Local:
-				"auth"}, Mechanism: "DIGEST-MD5"}
+		auth := &auth{XMLName: xml.Name{Space: NsSASL, Local: "auth"}, Mechanism: "DIGEST-MD5"}
 		cl.xmlOut <- auth
 	}
 }
@@ -467,7 +466,7 @@ func (cl *Client) handleSasl(srv *auth) {
 				Log.Err("SASL challenge decode: " +
 					err.String())
 			}
-			return;
+			return
 		}
 		srvMap := parseSasl(string(str))
 
@@ -490,10 +489,10 @@ func (cl *Client) handleSasl(srv *auth) {
 	}
 }
 
-func (cl *Client) saslDigest1(srvMap map[string] string) {
+func (cl *Client) saslDigest1(srvMap map[string]string) {
 	// Make sure it supports qop=auth
 	var hasAuth bool
-	for _, qop := range(strings.Fields(srvMap["qop"])) {
+	for _, qop := range strings.Fields(srvMap["qop"]) {
 		if qop == "auth" {
 			hasAuth = true
 		}
@@ -502,7 +501,7 @@ func (cl *Client) saslDigest1(srvMap map[string] string) {
 		if Log != nil {
 			Log.Err("Server doesn't support SASL auth")
 		}
-		return;
+		return
 	}
 
 	// Pick a realm.
@@ -552,7 +551,7 @@ func (cl *Client) saslDigest1(srvMap map[string] string) {
 	clMap["username"] = `"` + username + `"`
 	clMap["nonce"] = `"` + nonce + `"`
 	clMap["cnonce"] = `"` + cnonceStr + `"`
-	clMap["nc"] =  nonceCountStr
+	clMap["nc"] = nonceCountStr
 	clMap["qop"] = "auth"
 	clMap["digest-uri"] = `"` + digestUri + `"`
 	clMap["response"] = response
@@ -563,22 +562,17 @@ func (cl *Client) saslDigest1(srvMap map[string] string) {
 	// Encode the map and send it.
 	clStr := packSasl(clMap)
 	b64 := base64.StdEncoding
-	clObj := &auth{XMLName: xml.Name{Space: NsSASL, Local:
-			"response"}, Chardata:
-		b64.EncodeToString([]byte(clStr))}
+	clObj := &auth{XMLName: xml.Name{Space: NsSASL, Local: "response"}, Chardata: b64.EncodeToString([]byte(clStr))}
 	cl.xmlOut <- clObj
 }
 
-func (cl *Client) saslDigest2(srvMap map[string] string) {
+func (cl *Client) saslDigest2(srvMap map[string]string) {
 	if cl.saslExpected == srvMap["rspauth"] {
-		clObj := &auth{XMLName: xml.Name{Space: NsSASL, Local:
-				"response"}}
+		clObj := &auth{XMLName: xml.Name{Space: NsSASL, Local: "response"}}
 		cl.xmlOut <- clObj
 	} else {
-		clObj := &auth{XMLName: xml.Name{Space: NsSASL, Local:
-				"failure"}, Any:
-			&Generic{XMLName: xml.Name{Space: NsSASL,
-				Local: "abort"}}}
+		clObj := &auth{XMLName: xml.Name{Space: NsSASL, Local: "failure"}, Any: &Generic{XMLName: xml.Name{Space: NsSASL,
+			Local: "abort"}}}
 		cl.xmlOut <- clObj
 	}
 }
@@ -589,7 +583,7 @@ func parseSasl(in string) map[string]string {
 	re := regexp.MustCompile(`([^=]+)="?([^",]+)"?,?`)
 	strs := re.FindAllStringSubmatch(in, -1)
 	m := make(map[string]string)
-	for _, pair := range(strs) {
+	for _, pair := range strs {
 		key := strings.ToLower(string(pair[1]))
 		value := string(pair[2])
 		m[key] = value
@@ -600,18 +594,18 @@ func parseSasl(in string) map[string]string {
 // Inverse of parseSasl().
 func packSasl(m map[string]string) string {
 	var terms []string
-	for key, value := range(m) {
+	for key, value := range m {
 		if key == "" || value == "" || value == `""` {
 			continue
 		}
-		terms = append(terms, key + "=" + value)
+		terms = append(terms, key+"="+value)
 	}
 	return strings.Join(terms, ",")
 }
 
 // Computes the response string for digest authentication.
 func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
-	authenticate, digestUri, nonceCountStr string) string {
+authenticate, digestUri, nonceCountStr string) string {
 	h := func(text string) []byte {
 		h := md5.New()
 		h.Write([]byte(text))
@@ -624,11 +618,11 @@ func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
 		return h(secret + ":" + data)
 	}
 
-	a1 := string(h(username + ":" + realm + ":" + passwd)) + ":" +
+	a1 := string(h(username+":"+realm+":"+passwd)) + ":" +
 		nonce + ":" + cnonceStr
 	a2 := authenticate + ":" + digestUri
-	response := hex(kd(hex(h(a1)), nonce + ":" +
-		nonceCountStr + ":" + cnonceStr + ":auth:" +
+	response := hex(kd(hex(h(a1)), nonce+":"+
+		nonceCountStr+":"+cnonceStr+":auth:"+
 		hex(h(a2))))
 	return response
 }
@@ -640,7 +634,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	if res != "" {
 		bindReq.Resource = &res
 	}
-	msg := &Iq{Type: "set", Id: <- Id, Nested: []interface{}{bindReq}}
+	msg := &Iq{Type: "set", Id: <-Id, Nested: []interface{}{bindReq}}
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {
 			if Log != nil {
@@ -649,8 +643,8 @@ func (cl *Client) bind(bindAdv *bindIq) {
 			return false
 		}
 		var bindRepl *bindIq
-		for _, ele := range(st.GetNested()) {
-			if b, ok := ele.(*bindIq) ; ok {
+		for _, ele := range st.GetNested() {
+			if b, ok := ele.(*bindIq); ok {
 				bindRepl = b
 				break
 			}

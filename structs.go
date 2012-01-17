@@ -21,47 +21,51 @@ import (
 // entities. It looks like node@domain/resource. Node and resource are
 // sometimes optional.
 type JID struct {
-	Node string
-	Domain string
+	Node     string
+	Domain   string
 	Resource string
 }
+
 var _ fmt.Stringer = &JID{}
 var _ flag.Value = &JID{}
 
 // XMPP's <stream:stream> XML element
 type stream struct {
-	To string `xml:"attr"`
-	From string `xml:"attr"`
-	Id string `xml:"attr"`
-	Lang string `xml:"attr"`
+	To      string `xml:"attr"`
+	From    string `xml:"attr"`
+	Id      string `xml:"attr"`
+	Lang    string `xml:"attr"`
 	Version string `xml:"attr"`
 }
+
 var _ xml.Marshaler = &stream{}
 var _ fmt.Stringer = &stream{}
 
 // <stream:error>
 type streamError struct {
-	Any Generic
+	Any  Generic
 	Text *errText
 }
+
 var _ xml.Marshaler = &streamError{}
 
 type errText struct {
 	Lang string `xml:"attr"`
 	Text string `xml:"chardata"`
 }
+
 var _ xml.Marshaler = &errText{}
 
 type Features struct {
-	Starttls *starttls
+	Starttls   *starttls
 	Mechanisms mechs
-	Bind *bindIq
-	Session *Generic
-	Any *Generic
+	Bind       *bindIq
+	Session    *Generic
+	Any        *Generic
 }
 
 type starttls struct {
-	XMLName xml.Name
+	XMLName  xml.Name
 	Required *string
 }
 
@@ -70,10 +74,10 @@ type mechs struct {
 }
 
 type auth struct {
-	XMLName xml.Name
-	Chardata string `xml:"chardata"`
+	XMLName   xml.Name
+	Chardata  string `xml:"chardata"`
 	Mechanism string `xml:"attr"`
-	Any *Generic
+	Any       *Generic
 }
 
 // One of the three core XMPP stanza types: iq, message, presence. See
@@ -102,49 +106,52 @@ type Stanza interface {
 
 // message stanza
 type Message struct {
-	To string `xml:"attr"`
-	From string `xml:"attr"`
-	Id string `xml:"attr"`
-	Type string `xml:"attr"`
-	Lang string `xml:"attr"`
+	To       string `xml:"attr"`
+	From     string `xml:"attr"`
+	Id       string `xml:"attr"`
+	Type     string `xml:"attr"`
+	Lang     string `xml:"attr"`
 	Innerxml string `xml:"innerxml"`
-	Error *Error
-	Subject *Generic
-	Body *Generic
-	Thread *Generic
-	Nested []interface{}
+	Error    *Error
+	Subject  *Generic
+	Body     *Generic
+	Thread   *Generic
+	Nested   []interface{}
 }
+
 var _ xml.Marshaler = &Message{}
 var _ Stanza = &Message{}
 
 // presence stanza
 type Presence struct {
-	To string `xml:"attr"`
-	From string `xml:"attr"`
-	Id string `xml:"attr"`
-	Type string `xml:"attr"`
-	Lang string `xml:"attr"`
+	To       string `xml:"attr"`
+	From     string `xml:"attr"`
+	Id       string `xml:"attr"`
+	Type     string `xml:"attr"`
+	Lang     string `xml:"attr"`
 	Innerxml string `xml:"innerxml"`
-	Error *Error
-	Show *Generic
-	Status *Generic
+	Error    *Error
+	Show     *Generic
+	Status   *Generic
 	Priority *Generic
-	Nested []interface{}
+	Nested   []interface{}
 }
+
 var _ xml.Marshaler = &Presence{}
 var _ Stanza = &Presence{}
 
 // iq stanza
 type Iq struct {
-	To string `xml:"attr"`
-	From string `xml:"attr"`
-	Id string `xml:"attr"`
-	Type string `xml:"attr"`
-	Lang string `xml:"attr"`
+	To       string `xml:"attr"`
+	From     string `xml:"attr"`
+	Id       string `xml:"attr"`
+	Type     string `xml:"attr"`
+	Lang     string `xml:"attr"`
 	Innerxml string `xml:"innerxml"`
-	Error *Error
-	Nested []interface{}
+	Error    *Error
+	Nested   []interface{}
 }
+
 var _ xml.Marshaler = &Iq{}
 var _ Stanza = &Iq{}
 
@@ -156,21 +163,23 @@ type Error struct {
 	// Any nested element, if present.
 	Any *Generic
 }
+
 var _ os.Error = &Error{}
 
 // Used for resource binding as a nested element inside <iq/>.
 type bindIq struct {
-	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:xmpp-bind bind"`
-	Resource *string `xml:"resource"`
-	Jid *string `xml:"jid"`
+	XMLName  xml.Name `xml:"urn:ietf:params:xml:ns:xmpp-bind bind"`
+	Resource *string  `xml:"resource"`
+	Jid      *string  `xml:"jid"`
 }
 
 // Holds an XML element not described by the more specific types.
 type Generic struct {
-	XMLName xml.Name
-	Any *Generic
+	XMLName  xml.Name
+	Any      *Generic
 	Chardata string `xml:"chardata"`
 }
+
 var _ fmt.Stringer = &Generic{}
 
 func (jid *JID) String() string {
@@ -303,7 +312,7 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 	}
 	buf.WriteString(">")
 
-	if m, ok := st.(*Message) ; ok {
+	if m, ok := st.(*Message); ok {
 		err := xml.Marshal(buf, m.Subject)
 		if err != nil {
 			return nil, err
@@ -317,7 +326,7 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 			return nil, err
 		}
 	}
-	if p, ok := st.(*Presence) ; ok {
+	if p, ok := st.(*Presence); ok {
 		err := xml.Marshal(buf, p.Show)
 		if err != nil {
 			return nil, err
@@ -331,8 +340,8 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 			return nil, err
 		}
 	}
-	if nested := st.GetNested() ; nested != nil {
-		for _, n := range(nested) {
+	if nested := st.GetNested(); nested != nil {
+		for _, n := range nested {
 			xml.Marshal(buf, n)
 		}
 	} else if st.innerxml() != "" {
@@ -369,7 +378,7 @@ func (m *Message) GetId() string {
 
 func (m *Message) GetType() string {
 	return m.Type
-	}
+}
 
 func (m *Message) GetLang() string {
 	return m.Lang
@@ -413,7 +422,7 @@ func (p *Presence) GetId() string {
 
 func (p *Presence) GetType() string {
 	return p.Type
-	}
+}
 
 func (p *Presence) GetLang() string {
 	return p.Lang
@@ -457,7 +466,7 @@ func (iq *Iq) GetId() string {
 
 func (iq *Iq) GetType() string {
 	return iq.Type
-	}
+}
 
 func (iq *Iq) GetLang() string {
 	return iq.Lang
@@ -514,9 +523,8 @@ func ParseStanza(str string) (Stanza, os.Error) {
 	return stan, nil
 }
 
-var bindExt Extension = Extension{StanzaHandlers:
-	map[string] func(*xml.Name) interface{}{NsBind: newBind},
-		Start: func(cl *Client) {}}
+var bindExt Extension = Extension{StanzaHandlers: map[string]func(*xml.Name) interface{}{NsBind: newBind},
+	Start: func(cl *Client) {}}
 
 func newBind(name *xml.Name) interface{} {
 	return &bindIq{}
