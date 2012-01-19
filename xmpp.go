@@ -8,6 +8,7 @@ package xmpp
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -42,6 +43,8 @@ var (
 	Log *log.Logger
 	// Threshold for which messages are logged.
 	Loglevel syslog.Priority = syslog.LOG_NOTICE
+	// Use this Config to negotiate TLS connections.
+	TLSConfig *tls.Config = nil
 )
 
 // This channel may be used as a convenient way to generate a unique

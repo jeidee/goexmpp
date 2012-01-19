@@ -6,6 +6,7 @@ package main
 
 import (
 	"cjyar/xmpp"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -18,6 +19,8 @@ import (
 func main() {
 	xmpp.Log = log.New(os.Stderr, "", 0)
 	xmpp.Loglevel = syslog.LOG_NOTICE
+
+	xmpp.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 
 	var jid xmpp.JID
 	flag.Var(&jid, "jid", "JID to log in as")
