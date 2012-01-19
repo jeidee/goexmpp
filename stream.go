@@ -663,9 +663,9 @@ func (cl *Client) bind(bindAdv *bindIq) {
 			return false
 		}
 		jid := new(JID)
-		if !jid.Set(*jidStr) {
+		if err := jid.Set(*jidStr); err != nil {
 			if Log != nil {
-				Log.Err("Can't parse JID " + *jidStr)
+				Log.Err(err.Error())
 			}
 			return false
 		}

@@ -20,8 +20,8 @@ func assertEquals(t *testing.T, expected, observed string) {
 func TestJid(t *testing.T) {
 	str := "user@domain/res"
 	jid := &JID{}
-	if !jid.Set(str) {
-		t.Errorf("Set(%s) failed\n", str)
+	if err := jid.Set(str); err != nil {
+		t.Errorf("Set(%s) failed: %s", str, err)
 	}
 	assertEquals(t, "user", jid.Node)
 	assertEquals(t, "domain", jid.Domain)
@@ -29,8 +29,8 @@ func TestJid(t *testing.T) {
 	assertEquals(t, str, jid.String())
 
 	str = "domain.tld"
-	if !jid.Set(str) {
-		t.Errorf("Set(%s) failed\n", str)
+	if err := jid.Set(str); err != nil {
+		t.Errorf("Set(%s) failed: %s", str, err)
 	}
 	if jid.Node != "" {
 		t.Errorf("Node: %v\n", jid.Node)

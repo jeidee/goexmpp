@@ -31,11 +31,11 @@ var _ flag.Value = &JID{}
 
 // XMPP's <stream:stream> XML element
 type stream struct {
-	To      string `xml:"attr"`
-	From    string `xml:"attr"`
-	Id      string `xml:"attr"`
-	Lang    string `xml:"attr"`
-	Version string `xml:"attr"`
+	To      string `xml:"to,attr"`
+	From    string `xml:"from,attr"`
+	Id      string `xml:"id,attr"`
+	Lang    string `xml:"lang,attr"`
+	Version string `xml:"version,attr"`
 }
 
 var _ xml.Marshaler = &stream{}
@@ -43,41 +43,41 @@ var _ fmt.Stringer = &stream{}
 
 // <stream:error>
 type streamError struct {
-	Any  Generic
-	Text *errText
+	Any  Generic `xml:",any"`
+	Text *errText `xml:"text"`
 }
 
 var _ xml.Marshaler = &streamError{}
 
 type errText struct {
-	Lang string `xml:"attr"`
-	Text string `xml:"chardata"`
+	Lang string `xml:"lang,attr"`
+	Text string `xml:",chardata"`
 }
 
 var _ xml.Marshaler = &errText{}
 
 type Features struct {
-	Starttls   *starttls
-	Mechanisms mechs
-	Bind       *bindIq
-	Session    *Generic
-	Any        *Generic
+	Starttls   *starttls `xml:"starttls"`
+	Mechanisms mechs `xml:"mechanisms"`
+	Bind       *bindIq `xml:"bind"`
+	Session    *Generic `xml:"session"`
+	Any        *Generic `xml:",any"`
 }
 
 type starttls struct {
 	XMLName  xml.Name
-	Required *string
+	Required *string `xml:"required"`
 }
 
 type mechs struct {
-	Mechanism []string
+	Mechanism []string `xml:"mechanism"`
 }
 
 type auth struct {
 	XMLName   xml.Name
-	Chardata  string `xml:"chardata"`
-	Mechanism string `xml:"attr"`
-	Any       *Generic
+	Chardata  string `xml:",chardata"`
+	Mechanism string `xml:"mechanism,attr"`
+	Any       *Generic `xml:",any"`
 }
 
 // One of the three core XMPP stanza types: iq, message, presence. See
@@ -106,16 +106,16 @@ type Stanza interface {
 
 // message stanza
 type Message struct {
-	To       string `xml:"attr"`
-	From     string `xml:"attr"`
-	Id       string `xml:"attr"`
-	Type     string `xml:"attr"`
-	Lang     string `xml:"attr"`
-	Innerxml string `xml:"innerxml"`
-	Error    *Error
-	Subject  *Generic
-	Body     *Generic
-	Thread   *Generic
+	To       string `xml:"to,attr"`
+	From     string `xml:"from,attr"`
+	Id       string `xml:"id,attr"`
+	Type     string `xml:"type,attr"`
+	Lang     string `xml:"lang,attr"`
+	Innerxml string `xml:",innerxml"`
+	Error    *Error `xml:"error"`
+	Subject  *Generic `xml:"subject"`
+	Body     *Generic `xml:"body"`
+	Thread   *Generic `xml:"thread"`
 	Nested   []interface{}
 }
 
@@ -124,16 +124,16 @@ var _ Stanza = &Message{}
 
 // presence stanza
 type Presence struct {
-	To       string `xml:"attr"`
-	From     string `xml:"attr"`
-	Id       string `xml:"attr"`
-	Type     string `xml:"attr"`
-	Lang     string `xml:"attr"`
-	Innerxml string `xml:"innerxml"`
-	Error    *Error
-	Show     *Generic
-	Status   *Generic
-	Priority *Generic
+	To       string `xml:"to,attr"`
+	From     string `xml:"from,attr"`
+	Id       string `xml:"id,attr"`
+	Type     string `xml:"type,attr"`
+	Lang     string `xml:"lang,attr"`
+	Innerxml string `xml:",innerxml"`
+	Error    *Error `xml:"error"`
+	Show     *Generic `xml:"show"`
+	Status   *Generic `xml:"status"`
+	Priority *Generic `xml:"priority"`
 	Nested   []interface{}
 }
 
@@ -142,13 +142,13 @@ var _ Stanza = &Presence{}
 
 // iq stanza
 type Iq struct {
-	To       string `xml:"attr"`
-	From     string `xml:"attr"`
-	Id       string `xml:"attr"`
-	Type     string `xml:"attr"`
-	Lang     string `xml:"attr"`
-	Innerxml string `xml:"innerxml"`
-	Error    *Error
+	To       string `xml:"to,attr"`
+	From     string `xml:"from,attr"`
+	Id       string `xml:"id,attr"`
+	Type     string `xml:"type,attr"`
+	Lang     string `xml:"lang,attr"`
+	Innerxml string `xml:",innerxml"`
+	Error    *Error `xml:"error"`
 	Nested   []interface{}
 }
 
@@ -159,9 +159,9 @@ var _ Stanza = &Iq{}
 type Error struct {
 	XMLName xml.Name `xml:"error"`
 	// The error type attribute.
-	Type string `xml:"attr"`
+	Type string `xml:"type,attr"`
 	// Any nested element, if present.
-	Any *Generic
+	Any *Generic `xml:",any"`
 }
 
 var _ error = &Error{}
@@ -176,8 +176,8 @@ type bindIq struct {
 // Holds an XML element not described by the more specific types.
 type Generic struct {
 	XMLName  xml.Name
-	Any      *Generic
-	Chardata string `xml:"chardata"`
+	Any      *Generic `xml:",any"`
+	Chardata string `xml:",chardata"`
 }
 
 var _ fmt.Stringer = &Generic{}
@@ -195,16 +195,16 @@ func (jid *JID) String() string {
 
 // Set implements flag.Value. It returns true if it successfully
 // parses the string.
-func (jid *JID) Set(val string) bool {
+func (jid *JID) Set(val string) error {
 	r := regexp.MustCompile("^(([^@/]+)@)?([^@/]+)(/([^@/]+))?$")
 	parts := r.FindStringSubmatch(val)
 	if parts == nil {
-		return false
+		return errors.New("Can't parse as JID: " + val)
 	}
 	jid.Node = parts[2]
 	jid.Domain = parts[3]
 	jid.Resource = parts[5]
-	return true
+	return nil
 }
 
 func (s *stream) MarshalXML() ([]byte, error) {

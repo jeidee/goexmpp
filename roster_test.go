@@ -25,9 +25,13 @@ func TestRosterIqUnmarshal(t *testing.T) {
 		NsRoster + `"><item jid="a@b.c"/></query></iq>`
 	r := strings.NewReader(str)
 	var st Stanza = &Iq{}
-	xml.Unmarshal(r, st)
+	err := xml.Unmarshal(r, st)
+	if err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	assertEquals(t, "from", st.GetFrom())
 	m := map[string]func(*xml.Name) interface{}{NsRoster: newRosterQuery}
-	err := parseExtended(st, m)
+	err = parseExtended(st, m)
 	if err != nil {
 		t.Fatalf("parseExtended: %v", err)
 	}

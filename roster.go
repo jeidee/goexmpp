@@ -18,16 +18,16 @@ var rosterExt Extension = Extension{StanzaHandlers: map[string]func(*xml.Name) i
 // Roster query/result
 type RosterQuery struct {
 	XMLName xml.Name `xml:"jabber:iq:roster query"`
-	Item    []RosterItem
+	Item    []RosterItem `xml:"item"`
 }
 
 // See RFC 3921, Section 7.1.
 type RosterItem struct {
 	XMLName      xml.Name `xml:"item"`
-	Jid          string   `xml:"attr"`
-	Subscription string   `xml:"attr"`
-	Name         string   `xml:"attr"`
-	Group        []string
+	Jid          string   `xml:"jid,attr"`
+	Subscription string   `xml:"subscription,attr"`
+	Name         string   `xml:"name,attr"`
+	Group        []string `xml:"group"`
 }
 
 type rosterClient struct {
