@@ -16,10 +16,8 @@ import (
 // Demonstrate the API, and allow the user to interact with an XMPP
 // server via the terminal.
 func main() {
-	if false {
-		xmpp.Loglevel = syslog.LOG_DEBUG
-		xmpp.Log = log.New(os.Stderr, "", 0)
-	}
+	xmpp.Log = log.New(os.Stderr, "", 0)
+	xmpp.Loglevel = syslog.LOG_NOTICE
 
 	var jid xmpp.JID
 	flag.Var(&jid, "jid", "JID to log in as")
