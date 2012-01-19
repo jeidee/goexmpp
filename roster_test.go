@@ -5,10 +5,10 @@
 package xmpp
 
 import (
+	"encoding/xml"
 	"reflect"
 	"strings"
 	"testing"
-	"xml"
 )
 
 // This is mostly just tests of the roster data structures.

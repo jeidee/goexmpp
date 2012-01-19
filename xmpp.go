@@ -8,13 +8,13 @@ package xmpp
 
 import (
 	"bytes"
+	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
+	"log/syslog"
 	"net"
-	"os"
 	"sync"
-	"syslog"
-	"xml"
 )
 
 const (
@@ -107,7 +107,7 @@ type Client struct {
 // send operation to Client.Out will block until negotiation (resource
 // binding) is complete.
 func NewClient(jid *JID, password string, exts []Extension) (*Client,
-os.Error) {
+	error) {
 	// Include the mandatory extensions.
 	exts = append(exts, rosterExt)
 	exts = append(exts, bindExt)
@@ -115,8 +115,8 @@ os.Error) {
 	// Resolve the domain in the JID.
 	_, srvs, err := net.LookupSRV(clientSrv, "tcp", jid.Domain)
 	if err != nil {
-		return nil, os.NewError("LookupSrv " + jid.Domain +
-			": " + err.String())
+		return nil, errors.New("LookupSrv " + jid.Domain +
+			": " + err.Error())
 	}
 
 	var tcp *net.TCPConn
@@ -124,14 +124,14 @@ os.Error) {
 		addrStr := fmt.Sprintf("%s:%d", srv.Target, srv.Port)
 		addr, err := net.ResolveTCPAddr("tcp", addrStr)
 		if err != nil {
-			err = os.NewError(fmt.Sprintf("ResolveTCPAddr(%s): %s",
-				addrStr, err.String()))
+			err = errors.New(fmt.Sprintf("ResolveTCPAddr(%s): %s",
+				addrStr, err.Error()))
 			continue
 		}
 		tcp, err = net.DialTCP("tcp", nil, addr)
 		if err != nil {
-			err = os.NewError(fmt.Sprintf("DialTCP(%s): %s",
-				addr, err.String()))
+			err = errors.New(fmt.Sprintf("DialTCP(%s): %s",
+				addr, err.Error()))
 			continue
 		}
 	}
@@ -193,7 +193,7 @@ func (cl *Client) startTransport() (io.Reader, io.WriteCloser) {
 }
 
 func startXmlReader(r io.Reader,
-extStanza map[string]func(*xml.Name) interface{}) <-chan interface{} {
+	extStanza map[string]func(*xml.Name) interface{}) <-chan interface{} {
 	ch := make(chan interface{})
 	go readXml(r, ch, extStanza)
 	return ch
@@ -271,10 +271,10 @@ func (cl *Client) bindDone() {
 // session, retrieve the roster, and broadcast an initial
 // presence. The presence can be as simple as a newly-initialized
 // Presence struct.  See RFC 3921, Section 3.
-func (cl *Client) StartSession(getRoster bool, pr *Presence) os.Error {
+func (cl *Client) StartSession(getRoster bool, pr *Presence) error {
 	id := <-Id
 	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Nested: []interface{}{Generic{XMLName: xml.Name{Space: NsSession, Local: "session"}}}}
-	ch := make(chan os.Error)
+	ch := make(chan error)
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {
 			if Log != nil {

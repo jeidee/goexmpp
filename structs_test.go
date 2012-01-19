@@ -6,8 +6,8 @@ package xmpp
 
 import (
 	"bytes"
+	"encoding/xml"
 	"testing"
-	"xml"
 )
 
 func assertEquals(t *testing.T, expected, observed string) {

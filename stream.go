@@ -11,20 +11,19 @@
 package xmpp
 
 import (
-	"big"
 	"crypto/md5"
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/xml"
 	"fmt"
 	"io"
+	"log/syslog"
+	"math/big"
 	"net"
-	"os"
 	"regexp"
 	"strings"
-	"syslog"
 	"time"
-	"xml"
 )
 
 // Callback to handle a stanza with a particular id.
@@ -53,14 +52,14 @@ func (cl *Client) readTransport(w io.WriteCloser) {
 				}
 			}
 			if Log != nil {
-				Log.Err("read: " + err.String())
+				Log.Err("read: " + err.Error())
 			}
 			break
 		}
 		nw, err := w.Write(p[:nr])
 		if nw < nr {
 			if Log != nil {
-				Log.Err("read: " + err.String())
+				Log.Err("read: " + err.Error())
 			}
 			break
 		}
@@ -74,14 +73,14 @@ func (cl *Client) writeTransport(r io.Reader) {
 		nr, err := r.Read(p)
 		if nr == 0 {
 			if Log != nil {
-				Log.Err("write: " + err.String())
+				Log.Err("write: " + err.Error())
 			}
 			break
 		}
 		nw, err := cl.socket.Write(p[:nr])
 		if nw < nr {
 			if Log != nil {
-				Log.Err("write: " + err.String())
+				Log.Err("write: " + err.Error())
 			}
 			break
 		}
@@ -89,7 +88,7 @@ func (cl *Client) writeTransport(r io.Reader) {
 }
 
 func readXml(r io.Reader, ch chan<- interface{},
-extStanza map[string]func(*xml.Name) interface{}) {
+	extStanza map[string]func(*xml.Name) interface{}) {
 	if Loglevel >= syslog.LOG_DEBUG {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
@@ -103,9 +102,9 @@ Loop:
 		// Sniff the next token on the stream.
 		t, err := p.Token()
 		if t == nil {
-			if err != os.EOF {
+			if err != io.EOF {
 				if Log != nil {
-					Log.Err("read: " + err.String())
+					Log.Err("read: " + err.Error())
 				}
 			}
 			break
@@ -124,7 +123,7 @@ Loop:
 			if err != nil {
 				if Log != nil {
 					Log.Err("unmarshal stream: " +
-						err.String())
+						err.Error())
 				}
 				break Loop
 			}
@@ -157,7 +156,7 @@ Loop:
 		err = p.Unmarshal(obj, &se)
 		if err != nil {
 			if Log != nil {
-				Log.Err("unmarshal: " + err.String())
+				Log.Err("unmarshal: " + err.Error())
 			}
 			break Loop
 		}
@@ -170,7 +169,7 @@ Loop:
 			if err != nil {
 				if Log != nil {
 					Log.Err("ext unmarshal: " +
-						err.String())
+						err.Error())
 				}
 				break Loop
 			}
@@ -181,14 +180,14 @@ Loop:
 	}
 }
 
-func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) os.Error {
+func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) error {
 	// Now parse the stanza's innerxml to find the string that we
 	// can unmarshal this nested element from.
 	reader := strings.NewReader(st.innerxml())
 	p := xml.NewParser(reader)
 	for {
 		t, err := p.Token()
-		if err == os.EOF {
+		if err == io.EOF {
 			break
 		}
 		if err != nil {
@@ -229,7 +228,7 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 		err := xml.Marshal(w, obj)
 		if err != nil {
 			if Log != nil {
-				Log.Err("write: " + err.String())
+				Log.Err("write: " + err.Error())
 			}
 			break
 		}
@@ -292,7 +291,7 @@ Loop:
 // with the server. The control channel controls this loop's
 // activity.
 func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
-control <-chan int) {
+	control <-chan int) {
 	defer close(srvOut)
 
 	var input <-chan Stanza
@@ -327,7 +326,7 @@ Loop:
 // Stanzas from the remote go up through a stack of filters to the
 // app. This function manages the filters.
 func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
-topFilter <-chan Stanza, app chan<- Stanza) {
+	topFilter <-chan Stanza, app chan<- Stanza) {
 	defer close(app)
 Loop:
 	for {
@@ -464,7 +463,7 @@ func (cl *Client) handleSasl(srv *auth) {
 		if err != nil {
 			if Log != nil {
 				Log.Err("SASL challenge decode: " +
-					err.String())
+					err.Error())
 			}
 			return
 		}
@@ -531,7 +530,7 @@ func (cl *Client) saslDigest1(srvMap map[string]string) {
 	cnonce, err := rand.Int(rand.Reader, randSize)
 	if err != nil {
 		if Log != nil {
-			Log.Err("SASL rand: " + err.String())
+			Log.Err("SASL rand: " + err.Error())
 		}
 		return
 	}
@@ -605,11 +604,11 @@ func packSasl(m map[string]string) string {
 
 // Computes the response string for digest authentication.
 func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
-authenticate, digestUri, nonceCountStr string) string {
+	authenticate, digestUri, nonceCountStr string) string {
 	h := func(text string) []byte {
 		h := md5.New()
 		h.Write([]byte(text))
-		return h.Sum()
+		return h.Sum(nil)
 	}
 	hex := func(bytes []byte) string {
 		return fmt.Sprintf("%x", bytes)

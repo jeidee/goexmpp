@@ -8,13 +8,13 @@ package xmpp
 
 import (
 	"bytes"
+	"encoding/xml"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strings"
-	"xml"
 )
 
 // JID represents an entity that can communicate with other
@@ -164,7 +164,7 @@ type Error struct {
 	Any *Generic
 }
 
-var _ os.Error = &Error{}
+var _ error = &Error{}
 
 // Used for resource binding as a nested element inside <iq/>.
 type bindIq struct {
@@ -207,7 +207,7 @@ func (jid *JID) Set(val string) bool {
 	return true
 }
 
-func (s *stream) MarshalXML() ([]byte, os.Error) {
+func (s *stream) MarshalXML() ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<stream:stream")
 	writeField(buf, "xmlns", "jabber:client")
@@ -227,7 +227,7 @@ func (s *stream) String() string {
 	return string(result)
 }
 
-func parseStream(se xml.StartElement) (*stream, os.Error) {
+func parseStream(se xml.StartElement) (*stream, error) {
 	s := &stream{}
 	for _, attr := range se.Attr {
 		switch strings.ToLower(attr.Name.Local) {
@@ -246,7 +246,7 @@ func parseStream(se xml.StartElement) (*stream, os.Error) {
 	return s, nil
 }
 
-func (s *streamError) MarshalXML() ([]byte, os.Error) {
+func (s *streamError) MarshalXML() ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<stream:error>")
 	xml.Marshal(buf, s.Any)
@@ -257,7 +257,7 @@ func (s *streamError) MarshalXML() ([]byte, os.Error) {
 	return buf.Bytes(), nil
 }
 
-func (e *errText) MarshalXML() ([]byte, os.Error) {
+func (e *errText) MarshalXML() ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<text")
 	writeField(buf, "xmlns", NsStreams)
@@ -291,7 +291,7 @@ func (u *Generic) String() string {
 		u.XMLName.Local)
 }
 
-func marshalXML(st Stanza) ([]byte, os.Error) {
+func marshalXML(st Stanza) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString("<")
 	buf.WriteString(st.GetName())
@@ -354,7 +354,7 @@ func marshalXML(st Stanza) ([]byte, os.Error) {
 	return buf.Bytes(), nil
 }
 
-func (er *Error) String() string {
+func (er *Error) Error() string {
 	buf := bytes.NewBuffer(nil)
 	xml.Marshal(buf, er)
 	return buf.String()
@@ -400,7 +400,7 @@ func (m *Message) innerxml() string {
 	return m.Innerxml
 }
 
-func (m *Message) MarshalXML() ([]byte, os.Error) {
+func (m *Message) MarshalXML() ([]byte, error) {
 	return marshalXML(m)
 }
 
@@ -444,7 +444,7 @@ func (p *Presence) innerxml() string {
 	return p.Innerxml
 }
 
-func (p *Presence) MarshalXML() ([]byte, os.Error) {
+func (p *Presence) MarshalXML() ([]byte, error) {
 	return marshalXML(p)
 }
 
@@ -488,13 +488,13 @@ func (iq *Iq) innerxml() string {
 	return iq.Innerxml
 }
 
-func (iq *Iq) MarshalXML() ([]byte, os.Error) {
+func (iq *Iq) MarshalXML() ([]byte, error) {
 	return marshalXML(iq)
 }
 
 // Parse a string into a struct implementing Stanza -- this will be
 // either an Iq, a Message, or a Presence.
-func ParseStanza(str string) (Stanza, os.Error) {
+func ParseStanza(str string) (Stanza, error) {
 	r := strings.NewReader(str)
 	p := xml.NewParser(r)
 	tok, err := p.Token()
@@ -503,7 +503,7 @@ func ParseStanza(str string) (Stanza, os.Error) {
 	}
 	se, ok := tok.(xml.StartElement)
 	if !ok {
-		return nil, os.NewError("Not a start element")
+		return nil, errors.New("Not a start element")
 	}
 	var stan Stanza
 	switch se.Name.Local {
@@ -514,7 +514,7 @@ func ParseStanza(str string) (Stanza, os.Error) {
 	case "presence":
 		stan = &Presence{}
 	default:
-		return nil, os.NewError("Not iq, message, or presence")
+		return nil, errors.New("Not iq, message, or presence")
 	}
 	err = p.Unmarshal(stan, &se)
 	if err != nil {

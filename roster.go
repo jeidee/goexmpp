@@ -5,9 +5,10 @@
 package xmpp
 
 import (
+	"errors"
 	"fmt"
-	"os"
-	"xml"
+
+	"encoding/xml"
 )
 
 // This file contains support for roster management, RFC 3921, Section 7.
@@ -46,12 +47,12 @@ func newRosterQuery(name *xml.Name) interface{} {
 // Synchronously fetch this entity's roster from the server and cache
 // that information. This is called once from a fairly deep call stack
 // as part of XMPP negotiation.
-func fetchRoster(client *Client) os.Error {
+func fetchRoster(client *Client) error {
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
 	iq := &Iq{From: client.Jid.String(), Id: <-Id, Type: "get",
 		Nested: []interface{}{RosterQuery{}}}
-	ch := make(chan os.Error)
+	ch := make(chan error)
 	f := func(st Stanza) bool {
 		defer close(ch)
 		if iq.Type == "error" {
@@ -66,7 +67,7 @@ func fetchRoster(client *Client) os.Error {
 			}
 		}
 		if rq == nil {
-			ch <- os.NewError(fmt.Sprintf(
+			ch <- errors.New(fmt.Sprintf(
 				"Roster query result not query: %v", st))
 			return false
 		}
@@ -131,7 +132,7 @@ func feedRoster(rosterCh chan<- []RosterItem, rosterUpdate <-chan RosterItem) {
 		select {
 		case newIt := <-rosterUpdate:
 			if newIt.Subscription == "remove" {
-				roster[newIt.Jid] = RosterItem{}, false
+				delete(roster, newIt.Jid)
 			} else {
 				roster[newIt.Jid] = newIt
 			}

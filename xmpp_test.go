@@ -6,11 +6,11 @@ package xmpp
 
 import (
 	"bytes"
+	"encoding/xml"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
-	"xml"
 )
 
 func TestReadError(t *testing.T) {
