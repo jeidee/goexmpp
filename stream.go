@@ -52,14 +52,14 @@ func (cl *Client) readTransport(w io.WriteCloser) {
 				}
 			}
 			if Log != nil {
-				Log.Err("read: " + err.Error())
+				Log.Println("read: " + err.Error())
 			}
 			break
 		}
 		nw, err := w.Write(p[:nr])
 		if nw < nr {
 			if Log != nil {
-				Log.Err("read: " + err.Error())
+				Log.Println("read: " + err.Error())
 			}
 			break
 		}
@@ -73,14 +73,14 @@ func (cl *Client) writeTransport(r io.Reader) {
 		nr, err := r.Read(p)
 		if nr == 0 {
 			if Log != nil {
-				Log.Err("write: " + err.Error())
+				Log.Println("write: " + err.Error())
 			}
 			break
 		}
 		nw, err := cl.socket.Write(p[:nr])
 		if nw < nr {
 			if Log != nil {
-				Log.Err("write: " + err.Error())
+				Log.Println("write: " + err.Error())
 			}
 			break
 		}
@@ -104,7 +104,7 @@ Loop:
 		if t == nil {
 			if err != io.EOF {
 				if Log != nil {
-					Log.Err("read: " + err.Error())
+					Log.Println("read: " + err.Error())
 				}
 			}
 			break
@@ -122,7 +122,7 @@ Loop:
 			st, err := parseStream(se)
 			if err != nil {
 				if Log != nil {
-					Log.Err("unmarshal stream: " +
+					Log.Println("unmarshal stream: " +
 						err.Error())
 				}
 				break Loop
@@ -146,9 +146,9 @@ Loop:
 			obj = &Presence{}
 		default:
 			obj = &Generic{}
-			if Log != nil {
-				Log.Notice("Ignoring unrecognized: " +
-					se.Name.Space + " " + se.Name.Local)
+			if Log != nil && Loglevel >= syslog.LOG_NOTICE {
+				Log.Printf("Ignoring unrecognized: %s %s",
+					se.Name.Space, se.Name.Local)
 			}
 		}
 
@@ -156,7 +156,7 @@ Loop:
 		err = p.Unmarshal(obj, &se)
 		if err != nil {
 			if Log != nil {
-				Log.Err("unmarshal: " + err.Error())
+				Log.Println("unmarshal: " + err.Error())
 			}
 			break Loop
 		}
@@ -168,7 +168,7 @@ Loop:
 			err = parseExtended(st, extStanza)
 			if err != nil {
 				if Log != nil {
-					Log.Err("ext unmarshal: " +
+					Log.Println("ext unmarshal: " +
 						err.Error())
 				}
 				break Loop
@@ -228,7 +228,7 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 		err := xml.Marshal(w, obj)
 		if err != nil {
 			if Log != nil {
-				Log.Err("write: " + err.Error())
+				Log.Println("write: " + err.Error())
 			}
 			break
 		}
@@ -268,9 +268,9 @@ Loop:
 			}
 			st, ok := x.(Stanza)
 			if !ok {
-				if Log != nil {
-					Log.Warning(fmt.Sprintf(
-						"Unhandled non-stanza: %v", x))
+				if Log != nil && Loglevel >= syslog.LOG_WARNING {
+					Log.Printf(
+						"Unhandled non-stanza: %v", x)
 				}
 				continue
 			}
@@ -312,8 +312,8 @@ Loop:
 				break Loop
 			}
 			if x == nil {
-				if Log != nil {
-					Log.Notice("Refusing to send" +
+				if Log != nil && Loglevel >= syslog.LOG_NOTICE {
+					Log.Println("Refusing to send" +
 						" nil stanza")
 				}
 				continue
@@ -333,8 +333,8 @@ Loop:
 		select {
 		case newFilterOut := <-filterOut:
 			if newFilterOut == nil {
-				if Log != nil {
-					Log.Warning("Received nil filter")
+				if Log != nil && Loglevel >= syslog.LOG_WARNING {
+					Log.Println("Received nil filter")
 				}
 				filterIn <- nil
 				continue
@@ -362,8 +362,8 @@ func handleStream(ss *stream) {
 }
 
 func (cl *Client) handleStreamError(se *streamError) {
-	if Log != nil {
-		Log.Notice(fmt.Sprintf("Received stream error: %v", se))
+	if Log != nil && Loglevel >= syslog.LOG_NOTICE {
+		Log.Printf("Received stream error: %v", se)
 	}
 	close(cl.Out)
 }
@@ -413,8 +413,8 @@ func (cl *Client) handleTls(t *starttls) {
 	// reader doesn't get woken up unnecessarily.
 	tcp.SetReadTimeout(0)
 
-	if Log != nil {
-		Log.Info("TLS negotiation succeeded.")
+	if Log != nil && Loglevel >= syslog.LOG_INFO {
+		Log.Println("TLS negotiation succeeded.")
 	}
 	cl.Features = nil
 
@@ -462,7 +462,7 @@ func (cl *Client) handleSasl(srv *auth) {
 		str, err := b64.DecodeString(srv.Chardata)
 		if err != nil {
 			if Log != nil {
-				Log.Err("SASL challenge decode: " +
+				Log.Println("SASL challenge decode: " +
 					err.Error())
 			}
 			return
@@ -475,12 +475,12 @@ func (cl *Client) handleSasl(srv *auth) {
 			cl.saslDigest2(srvMap)
 		}
 	case "failure":
-		if Log != nil {
-			Log.Notice("SASL authentication failed")
+		if Log != nil && Loglevel >= syslog.LOG_NOTICE {
+			Log.Println("SASL authentication failed")
 		}
 	case "success":
-		if Log != nil {
-			Log.Info("Sasl authentication succeeded")
+		if Log != nil && Loglevel >= syslog.LOG_INFO {
+			Log.Println("Sasl authentication succeeded")
 		}
 		cl.Features = nil
 		ss := &stream{To: cl.Jid.Domain, Version: Version}
@@ -498,7 +498,7 @@ func (cl *Client) saslDigest1(srvMap map[string]string) {
 	}
 	if !hasAuth {
 		if Log != nil {
-			Log.Err("Server doesn't support SASL auth")
+			Log.Println("Server doesn't support SASL auth")
 		}
 		return
 	}
@@ -530,7 +530,7 @@ func (cl *Client) saslDigest1(srvMap map[string]string) {
 	cnonce, err := rand.Int(rand.Reader, randSize)
 	if err != nil {
 		if Log != nil {
-			Log.Err("SASL rand: " + err.Error())
+			Log.Println("SASL rand: " + err.Error())
 		}
 		return
 	}
@@ -637,7 +637,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {
 			if Log != nil {
-				Log.Err("Resource binding failed")
+				Log.Println("Resource binding failed")
 			}
 			return false
 		}
@@ -650,28 +650,27 @@ func (cl *Client) bind(bindAdv *bindIq) {
 		}
 		if bindRepl == nil {
 			if Log != nil {
-				Log.Err(fmt.Sprintf("Bad bind reply: %v",
-					st))
+				Log.Printf("Bad bind reply: %v", st)
 			}
 			return false
 		}
 		jidStr := bindRepl.Jid
 		if jidStr == nil || *jidStr == "" {
 			if Log != nil {
-				Log.Err("Can't bind empty resource")
+				Log.Println("Can't bind empty resource")
 			}
 			return false
 		}
 		jid := new(JID)
 		if err := jid.Set(*jidStr); err != nil {
 			if Log != nil {
-				Log.Err(err.Error())
+				Log.Println(err.Error())
 			}
 			return false
 		}
 		cl.Jid = *jid
-		if Log != nil {
-			Log.Info("Bound resource: " + cl.Jid.String())
+		if Log != nil && Loglevel >= syslog.LOG_INFO {
+			Log.Println("Bound resource: " + cl.Jid.String())
 		}
 		cl.bindDone()
 		return false

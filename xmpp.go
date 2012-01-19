@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"log/syslog"
 	"net"
 	"sync"
@@ -38,7 +39,7 @@ const (
 var (
 	// If non-nil when NewClient() is called, log messages will be
 	// sent to this writer.
-	Log *syslog.Writer
+	Log *log.Logger
 	// Threshold for which messages are logged.
 	Loglevel syslog.Priority = syslog.LOG_NOTICE
 )
@@ -249,13 +250,13 @@ func tee(r io.Reader, w io.Writer, prefix string) {
 		}
 		buf.Write(c[:n])
 		if c[0] == '\n' || c[0] == '>' {
-			Log.Debug(buf.String())
+			Log.Println(buf.String())
 			buf.Reset()
 		}
 	}
 	leftover := buf.String()
 	if leftover != "" {
-		Log.Debug(buf.String())
+		Log.Println(buf.String())
 	}
 }
 
@@ -278,8 +279,8 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) error {
 	f := func(st Stanza) bool {
 		if st.GetType() == "error" {
 			if Log != nil {
-				Log.Err(fmt.Sprintf("Can't start session: %v",
-					st))
+				Log.Printf("Can't start session: %v",
+					st)
 			}
 			ch <- st.GetError()
 			return false
