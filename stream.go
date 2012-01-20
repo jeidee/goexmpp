@@ -11,6 +11,7 @@
 package xmpp
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"crypto/tls"
@@ -398,6 +399,9 @@ func (cl *Client) handleFeatures(fe *Features) {
 	}
 }
 
+// BUG(cjyar): Server certificate is not checked against the provided
+// hostname.
+
 // readTransport() is running concurrently. We need to stop it,
 // negotiate TLS, then start it again. It calls waitForSocket() in
 // its inner loop; see below.
@@ -430,7 +434,7 @@ func (cl *Client) handleTls(t *starttls) {
 
 	// Now re-send the initial handshake message to start the new
 	// session.
-		hsOut := openStream()
+	hsOut := openStream(&cl.Jid)
 	cl.xmlOut <- hsOut
 }
 
@@ -449,19 +453,40 @@ func (cl *Client) waitForSocket() {
 	cl.socketSync.Done()
 }
 
-// BUG(cjyar): Doesn't implement TLS/SASL EXTERNAL.
 func (cl *Client) chooseSasl(fe *Features) {
-	var digestMd5 bool
+	var digestMd5, external bool
 	for _, m := range fe.Mechanisms.Mechanism {
 		switch strings.ToLower(m) {
 		case "digest-md5":
 			digestMd5 = true
+		case "external":
+			external = true
 		}
 	}
 
-	if digestMd5 {
+	if external {
+		auth := &auth{XMLName: xml.Name{Space: NsSASL, Local:
+				"auth"}, Mechanism: "EXTERNAL"}
+		cl.xmlOut <- auth
+	} else if digestMd5 {
 		auth := &auth{XMLName: xml.Name{Space: NsSASL, Local: "auth"}, Mechanism: "DIGEST-MD5"}
 		cl.xmlOut <- auth
+	} else {
+		if Log != nil {
+			buf := bytes.NewBuffer(nil)
+			xml.Marshal(buf, fe)
+			Log.Printf("No supported mechanisms: %s",
+				buf.String())
+		}
+		abort := Generic{XMLName: xml.Name{Local: "abort",
+			Space: NsSASL}}
+		cl.xmlOut <- abort
+		se := streamError{Any: Generic{XMLName:
+				xml.Name{Local: "undefined-condition",
+				Space: NsStreams}}, Text:
+			&errText{Lang: "en", Text: "No supported mechs"}}
+		cl.xmlOut <- se
+		close(cl.xmlOut)
 	}
 }
 
@@ -493,7 +518,7 @@ func (cl *Client) handleSasl(srv *auth) {
 			Log.Println("Sasl authentication succeeded")
 		}
 		cl.Features = nil
-		cl.xmlOut <- openStream(cl.Jid)
+		cl.xmlOut <- openStream(&cl.Jid)
 	}
 }
 
@@ -524,8 +549,8 @@ func (cl *Client) saslDigest1(srvMap map[string]string) {
 	nonceCount := int32(1)
 	nonceCountStr := fmt.Sprintf("%08x", nonceCount)
 
-	// Begin building the response. Username is
-	// user@domain or just domain.
+	// Begin building the response. Username is user (with no
+	// @domain) or just domain.
 	var username string
 	if cl.Jid.Node == "" {
 		username = cl.Jid.Domain
