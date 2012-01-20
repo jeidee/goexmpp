@@ -33,6 +33,16 @@ type stanzaHandler struct {
 	f func(Stanza) bool
 }
 
+// BUG(cjyar): There's no way to specify xml:lang for the top-level
+// <stream:stream> element as the default language for this client.
+
+// Generate the "open stream" element which tells the remote we want
+// to speak XMPP. This is actually done 3 times, since we renegotiate
+// our transport layer with TLS and then with SASL.
+func openStream(jid *JID) *stream {
+	return &stream{To: jid.Domain, Version: Version}
+}
+
 // BUG(cjyar) Review all these *Client receiver methods. They should
 // probably either all be receivers, or none.
 
@@ -420,7 +430,7 @@ func (cl *Client) handleTls(t *starttls) {
 
 	// Now re-send the initial handshake message to start the new
 	// session.
-	hsOut := &stream{To: cl.Jid.Domain, Version: Version}
+		hsOut := openStream()
 	cl.xmlOut <- hsOut
 }
 
@@ -483,8 +493,7 @@ func (cl *Client) handleSasl(srv *auth) {
 			Log.Println("Sasl authentication succeeded")
 		}
 		cl.Features = nil
-		ss := &stream{To: cl.Jid.Domain, Version: Version}
-		cl.xmlOut <- ss
+		cl.xmlOut <- openStream(cl.Jid)
 	}
 }
 

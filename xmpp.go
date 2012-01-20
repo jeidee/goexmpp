@@ -182,8 +182,7 @@ func NewClient(jid *JID, password string, exts []Extension) (*Client,
 	}
 
 	// Initial handshake.
-	hsOut := &stream{To: jid.Domain, Version: Version}
-	cl.xmlOut <- hsOut
+	cl.xmlOut <- openStream(jid)
 
 	return cl, nil
 }
