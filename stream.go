@@ -37,6 +37,9 @@ type stanzaHandler struct {
 // BUG(cjyar): There's no way to specify xml:lang for the top-level
 // <stream:stream> element as the default language for this client.
 
+// BUG(cjyar): We SHOULD send a text declaration before the "open
+// stream" element.
+
 // Generate the "open stream" element which tells the remote we want
 // to speak XMPP. This is actually done 3 times, since we renegotiate
 // our transport layer with TLS and then with SASL.
