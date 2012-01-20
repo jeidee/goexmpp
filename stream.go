@@ -141,6 +141,8 @@ Loop:
 				}
 				break Loop
 			}
+			// BUG(cjyar): Does not verify server hostname
+			// in DNS as per RFC3920.14.3.
 			ch <- st
 			continue
 		case "stream error", NsStream + " error":
@@ -403,7 +405,7 @@ func (cl *Client) handleFeatures(fe *Features) {
 }
 
 // BUG(cjyar): Server certificate is not checked against the provided
-// hostname.
+// hostname. RFC3920.14.2
 
 // readTransport() is running concurrently. We need to stop it,
 // negotiate TLS, then start it again. It calls waitForSocket() in
