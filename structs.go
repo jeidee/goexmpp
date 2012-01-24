@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go-idn.googlecode.com/hg/src/stringprep"
 	"io"
 	"os"
 	"regexp"
@@ -201,9 +202,9 @@ func (jid *JID) Set(val string) bool {
 	if parts == nil {
 		return false
 	}
-	jid.Node = parts[2]
-	jid.Domain = parts[3]
-	jid.Resource = parts[5]
+	jid.Node = stringprep.Nodeprep(parts[2])
+	jid.Domain = stringprep.Nodeprep(parts[3])
+	jid.Resource = stringprep.Resourceprep(parts[5])
 	return true
 }
 
