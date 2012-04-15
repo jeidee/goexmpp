@@ -19,7 +19,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"log/syslog"
 	"math/big"
 	"net"
 	"regexp"
@@ -52,11 +51,17 @@ func openStream(jid *JID) *stream {
 
 func (cl *Client) readTransport(w io.WriteCloser) {
 	defer w.Close()
-	cl.socket.SetReadTimeout(1e8)
+	readDelay, _ := time.ParseDuration("1s")
 	p := make([]byte, 1024)
 	for {
 		if cl.socket == nil {
 			cl.waitForSocket()
+			readDelay = 0
+		}
+		if readDelay != 0 {
+			readTimeout := time.Now()
+			readTimeout.Add(readDelay)
+			cl.socket.SetReadDeadline(readTimeout)
 		}
 		nr, err := cl.socket.Read(p)
 		if nr == 0 {
@@ -103,14 +108,14 @@ func (cl *Client) writeTransport(r io.Reader) {
 
 func readXml(r io.Reader, ch chan<- interface{},
 	extStanza map[string]func(*xml.Name) interface{}) {
-	if Loglevel >= syslog.LOG_DEBUG {
+	if Loglevel >= LOG_DEBUG {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
 		r = pr
 	}
 	defer close(ch)
 
-	p := xml.NewParser(r)
+	p := xml.NewDecoder(r)
 Loop:
 	for {
 		// Sniff the next token on the stream.
@@ -162,14 +167,14 @@ Loop:
 			obj = &Presence{}
 		default:
 			obj = &Generic{}
-			if Log != nil && Loglevel >= syslog.LOG_NOTICE {
+			if Log != nil && Loglevel >= LOG_NOTICE {
 				Log.Printf("Ignoring unrecognized: %s %s",
 					se.Name.Space, se.Name.Local)
 			}
 		}
 
 		// Read the complete XML stanza.
-		err = p.Unmarshal(obj, &se)
+		err = p.DecodeElement(obj, &se)
 		if err != nil {
 			if Log != nil {
 				Log.Println("unmarshal: " + err.Error())
@@ -200,7 +205,7 @@ func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) 
 	// Now parse the stanza's innerxml to find the string that we
 	// can unmarshal this nested element from.
 	reader := strings.NewReader(st.innerxml())
-	p := xml.NewParser(reader)
+	p := xml.NewDecoder(reader)
 	for {
 		t, err := p.Token()
 		if err == io.EOF {
@@ -216,7 +221,7 @@ func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) 
 
 				// Unmarshal the nested element and
 				// stuff it back into the stanza.
-				err := p.Unmarshal(nested, &se)
+				err := p.DecodeElement(nested, &se)
 				if err != nil {
 					return err
 				}
@@ -229,7 +234,7 @@ func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) 
 }
 
 func writeXml(w io.Writer, ch <-chan interface{}) {
-	if Loglevel >= syslog.LOG_DEBUG {
+	if Loglevel >= LOG_DEBUG {
 		pr, pw := io.Pipe()
 		go tee(pr, w, "C: ")
 		w = pw
@@ -241,7 +246,7 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	}(w)
 
 	for obj := range ch {
-		err := xml.Marshal(w, obj)
+		err := xml.NewEncoder(w).Encode(obj)
 		if err != nil {
 			if Log != nil {
 				Log.Println("write: " + err.Error())
@@ -284,7 +289,7 @@ Loop:
 			}
 			st, ok := x.(Stanza)
 			if !ok {
-				if Log != nil && Loglevel >= syslog.LOG_WARNING {
+				if Log != nil && Loglevel >= LOG_WARNING {
 					Log.Printf(
 						"Unhandled non-stanza: %v", x)
 				}
@@ -328,7 +333,7 @@ Loop:
 				break Loop
 			}
 			if x == nil {
-				if Log != nil && Loglevel >= syslog.LOG_NOTICE {
+				if Log != nil && Loglevel >= LOG_NOTICE {
 					Log.Println("Refusing to send" +
 						" nil stanza")
 				}
@@ -349,7 +354,7 @@ Loop:
 		select {
 		case newFilterOut := <-filterOut:
 			if newFilterOut == nil {
-				if Log != nil && Loglevel >= syslog.LOG_WARNING {
+				if Log != nil && Loglevel >= LOG_WARNING {
 					Log.Println("Received nil filter")
 				}
 				filterIn <- nil
@@ -378,7 +383,7 @@ func handleStream(ss *stream) {
 }
 
 func (cl *Client) handleStreamError(se *streamError) {
-	if Log != nil && Loglevel >= syslog.LOG_NOTICE {
+	if Log != nil && Loglevel >= LOG_NOTICE {
 		Log.Printf("Received stream error: %v", se)
 	}
 	close(cl.Out)
@@ -428,11 +433,7 @@ func (cl *Client) handleTls(t *starttls) {
 	cl.socket = tls
 	cl.socketSync.Wait()
 
-	// Reset the read timeout on the (underlying) socket so the
-	// reader doesn't get woken up unnecessarily.
-	tcp.SetReadTimeout(0)
-
-	if Log != nil && Loglevel >= syslog.LOG_INFO {
+	if Log != nil && Loglevel >= LOG_INFO {
 		Log.Println("TLS negotiation succeeded.")
 	}
 	cl.Features = nil
@@ -470,8 +471,7 @@ func (cl *Client) chooseSasl(fe *Features) {
 	}
 
 	if external {
-		auth := &auth{XMLName: xml.Name{Space: NsSASL, Local:
-				"auth"}, Mechanism: "EXTERNAL"}
+		auth := &auth{XMLName: xml.Name{Space: NsSASL, Local: "auth"}, Mechanism: "EXTERNAL"}
 		cl.xmlOut <- auth
 	} else if digestMd5 {
 		auth := &auth{XMLName: xml.Name{Space: NsSASL, Local: "auth"}, Mechanism: "DIGEST-MD5"}
@@ -479,17 +479,15 @@ func (cl *Client) chooseSasl(fe *Features) {
 	} else {
 		if Log != nil {
 			buf := bytes.NewBuffer(nil)
-			xml.Marshal(buf, fe)
+			xml.NewEncoder(buf).Encode(fe)
 			Log.Printf("No supported mechanisms: %s",
 				buf.String())
 		}
 		abort := Generic{XMLName: xml.Name{Local: "abort",
 			Space: NsSASL}}
 		cl.xmlOut <- abort
-		se := streamError{Any: Generic{XMLName:
-				xml.Name{Local: "undefined-condition",
-				Space: NsStreams}}, Text:
-			&errText{Lang: "en", Text: "No supported mechs"}}
+		se := streamError{Any: Generic{XMLName: xml.Name{Local: "undefined-condition",
+			Space: NsStreams}}, Text: &errText{Lang: "en", Text: "No supported mechs"}}
 		cl.xmlOut <- se
 		close(cl.xmlOut)
 	}
@@ -515,11 +513,11 @@ func (cl *Client) handleSasl(srv *auth) {
 			cl.saslDigest2(srvMap)
 		}
 	case "failure":
-		if Log != nil && Loglevel >= syslog.LOG_NOTICE {
+		if Log != nil && Loglevel >= LOG_NOTICE {
 			Log.Println("SASL authentication failed")
 		}
 	case "success":
-		if Log != nil && Loglevel >= syslog.LOG_INFO {
+		if Log != nil && Loglevel >= LOG_INFO {
 			Log.Println("Sasl authentication succeeded")
 		}
 		cl.Features = nil
@@ -708,7 +706,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 			return false
 		}
 		cl.Jid = *jid
-		if Log != nil && Loglevel >= syslog.LOG_INFO {
+		if Log != nil && Loglevel >= LOG_INFO {
 			Log.Println("Bound resource: " + cl.Jid.String())
 		}
 		cl.bindDone()

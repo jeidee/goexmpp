@@ -7,7 +7,6 @@ package xmpp
 import (
 	"encoding/xml"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -23,9 +22,8 @@ func TestRosterIqMarshal(t *testing.T) {
 func TestRosterIqUnmarshal(t *testing.T) {
 	str := `<iq from="from" xml:lang="en"><query xmlns="` +
 		NsRoster + `"><item jid="a@b.c"/></query></iq>`
-	r := strings.NewReader(str)
 	var st Stanza = &Iq{}
-	err := xml.Unmarshal(r, st)
+	err := xml.Unmarshal([]byte(str), st)
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}

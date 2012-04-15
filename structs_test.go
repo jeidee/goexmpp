@@ -44,7 +44,7 @@ func TestJid(t *testing.T) {
 
 func assertMarshal(t *testing.T, expected string, marshal interface{}) {
 	buf := bytes.NewBuffer(nil)
-	xml.Marshal(buf, marshal)
+	xml.NewEncoder(buf).Encode(marshal)
 	observed := string(buf.Bytes())
 	assertEquals(t, expected, observed)
 }

@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"log/syslog"
 	"net"
 	"sync"
 )
@@ -37,12 +36,26 @@ const (
 	clientSrv = "xmpp-client"
 )
 
+// This is copied from log/syslog, because that's not implemented on
+// Windows.
+type Priority int
+const (
+	LOG_EMERG Priority = iota
+	LOG_ALERT
+	LOG_CRIT
+	LOG_ERR
+	LOG_WARNING
+	LOG_NOTICE
+	LOG_INFO
+	LOG_DEBUG
+)
+
 var (
 	// If non-nil when NewClient() is called, log messages will be
 	// sent to this writer.
 	Log *log.Logger
 	// Threshold for which messages are logged.
-	Loglevel syslog.Priority = syslog.LOG_NOTICE
+	Loglevel Priority = LOG_NOTICE
 	// Use this Config to negotiate TLS connections.
 	TLSConfig *tls.Config = nil
 )
