@@ -31,18 +31,19 @@ var _ flag.Value = &JID{}
 
 // XMPP's <stream:stream> XML element
 type stream struct {
-	XMLName xml.Name `xml:"stream stream"`
-	To      string `xml:"to,attr"`
-	From    string `xml:"from,attr"`
-	Id      string `xml:"id,attr"`
-	Lang    string `xml:"lang,attr"`
-	Version string `xml:"version,attr"`
+	XMLName xml.Name `xml:"stream http://etherx.jabber.org/streams"`
+	To      string `xml:"to,attr,omitempty"`
+	From    string `xml:"from,attr,omitempty"`
+	Id      string `xml:"id,attr,omitempty"`
+	Lang    string `xml:"lang,attr,omitempty"`
+	Version string `xml:"version,attr,omitempty"`
 }
 
 var _ fmt.Stringer = &stream{}
 
 // <stream:error>
 type streamError struct {
+	XMLName xml.Name `xml:"stream:error"`
 	Any  Generic  `xml:",any"`
 	Text *errText `xml:"text"`
 }
