@@ -8,6 +8,7 @@ package xmpp
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -58,6 +59,9 @@ type Extension struct {
 	StanzaHandlers map[string]func(*xml.Name) interface{}
 	Start          func(*Client)
 }
+
+// Allows the user to override the TLS configuration.
+var TlsConfig tls.Config
 
 // The client in a client-server XMPP connection.
 type Client struct {
@@ -269,7 +273,7 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) error {
 	f := func(st Stanza) bool {
 		iq, ok := st.(*Iq)
 		if !ok {
-			Warn.Logf("iq reply not iq; can't start session")
+			Warn.Log("iq reply not iq; can't start session")
 			ch <- errors.New("bad session start reply")
 			return false
 		}

@@ -299,7 +299,7 @@ Loop:
 				break Loop
 			}
 			if x == nil {
-				Info.Logf("Refusing to send nil stanza")
+				Info.Log("Refusing to send nil stanza")
 				continue
 			}
 			srvOut <- x
@@ -317,7 +317,7 @@ Loop:
 		select {
 		case newFilterOut := <-filterOut:
 			if newFilterOut == nil {
-				Warn.Logf("Received nil filter")
+				Warn.Log("Received nil filter")
 				filterIn <- nil
 				continue
 			}
@@ -381,7 +381,7 @@ func (cl *Client) handleTls(t *starttls) {
 	cl.socketSync.Wait()
 
 	// Negotiate TLS with the server.
-	tls := tls.Client(tcp, nil)
+	tls := tls.Client(tcp, &TlsConfig)
 
 	// Make the TLS connection available to the reader, and wait
 	// for it to signal that it's working again.
@@ -389,7 +389,7 @@ func (cl *Client) handleTls(t *starttls) {
 	cl.socket = tls
 	cl.socketSync.Wait()
 
-	Info.Logf("TLS negotiation succeeded.")
+	Info.Log("TLS negotiation succeeded.")
 	cl.Features = nil
 
 	// Now re-send the initial handshake message to start the new
@@ -446,9 +446,9 @@ func (cl *Client) handleSasl(srv *auth) {
 			cl.saslDigest2(srvMap)
 		}
 	case "failure":
-		Info.Logf("SASL authentication failed")
+		Info.Log("SASL authentication failed")
 	case "success":
-		Info.Logf("Sasl authentication succeeded")
+		Info.Log("Sasl authentication succeeded")
 		cl.Features = nil
 		ss := &stream{To: cl.Jid.Domain, Version: Version}
 		cl.xmlOut <- ss
@@ -464,7 +464,7 @@ func (cl *Client) saslDigest1(srvMap map[string]string) {
 		}
 	}
 	if !hasAuth {
-		Warn.Logf("Server doesn't support SASL auth")
+		Warn.Log("Server doesn't support SASL auth")
 		return
 	}
 
@@ -600,10 +600,10 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	f := func(st Stanza) bool {
 		iq, ok := st.(*Iq)
 		if !ok {
-			Warn.Logf("non-iq response")
+			Warn.Log("non-iq response")
 		}
 		if iq.Type == "error" {
-			Warn.Logf("Resource binding failed")
+			Warn.Log("Resource binding failed")
 			return false
 		}
 		var bindRepl *bindIq
@@ -619,7 +619,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 		}
 		jidStr := bindRepl.Jid
 		if jidStr == nil || *jidStr == "" {
-			Warn.Logf("Can't bind empty resource")
+			Warn.Log("Can't bind empty resource")
 			return false
 		}
 		jid := new(JID)

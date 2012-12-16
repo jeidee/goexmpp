@@ -6,6 +6,7 @@ package main
 
 import (
 	xmpp ".."
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -28,6 +29,8 @@ func init() {
 	xmpp.Debug = logger
 	xmpp.Info = logger
 	xmpp.Warn = logger
+
+	xmpp.TlsConfig = tls.Config{InsecureSkipVerify: true}
 }
 
 // Demonstrate the API, and allow the user to interact with an XMPP

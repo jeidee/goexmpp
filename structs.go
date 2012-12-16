@@ -274,7 +274,7 @@ func (u *Generic) String() string {
 func (er *Error) Error() string {
 	buf, err := xml.Marshal(er)
 	if err != nil {
-		Warn.Logf("double bad error: couldn't marshal error")
+		Warn.Log("double bad error: couldn't marshal error")
 		return "unreadable error"
 	}
 	return string(buf)
