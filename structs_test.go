@@ -6,8 +6,8 @@ package xmpp
 
 import (
 	"bytes"
+	"encoding/xml"
 	"testing"
-	"xml"
 )
 
 func assertEquals(t *testing.T, expected, observed string) {
@@ -20,8 +20,8 @@ func assertEquals(t *testing.T, expected, observed string) {
 func TestJid(t *testing.T) {
 	str := "user@domain/res"
 	jid := &JID{}
-	if !jid.Set(str) {
-		t.Errorf("Set(%s) failed\n", str)
+	if err := jid.Set(str); err != nil {
+		t.Errorf("Set(%s) failed: %s", str, err)
 	}
 	assertEquals(t, "user", jid.Node)
 	assertEquals(t, "domain", jid.Domain)
@@ -29,8 +29,8 @@ func TestJid(t *testing.T) {
 	assertEquals(t, str, jid.String())
 
 	str = "domain.tld"
-	if !jid.Set(str) {
-		t.Errorf("Set(%s) failed\n", str)
+	if err := jid.Set(str); err != nil {
+		t.Errorf("Set(%s) failed: %s", str, err)
 	}
 	if jid.Node != "" {
 		t.Errorf("Node: %v\n", jid.Node)
@@ -43,28 +43,34 @@ func TestJid(t *testing.T) {
 }
 
 func assertMarshal(t *testing.T, expected string, marshal interface{}) {
-	buf := bytes.NewBuffer(nil)
-	xml.Marshal(buf, marshal)
-	observed := string(buf.Bytes())
+	var buf bytes.Buffer
+	enc := xml.NewEncoder(&buf)
+	enc.Context.Map[NsClient] = ""
+	enc.Context.Map[NsStream] = "stream"
+	err := enc.Encode(marshal)
+	if err != nil {
+		t.Errorf("Marshal error for %s: %s", marshal, err)
+	}
+	observed := buf.String()
 	assertEquals(t, expected, observed)
 }
 
 func TestStreamMarshal(t *testing.T) {
 	s := &stream{To: "bob"}
-	exp := `<stream:stream xmlns="jabber:client"` +
-		` xmlns:stream="` + NsStream + `" to="bob">`
-	assertMarshal(t, exp, s)
+	exp := `<stream:stream xmlns="` + NsClient +
+		`" xmlns:stream="` + NsStream + `" to="bob">`
+	assertEquals(t, exp, s.String())
 
 	s = &stream{To: "bob", From: "alice", Id: "#3", Version: "5.3"}
-	exp = `<stream:stream xmlns="jabber:client"` +
-		` xmlns:stream="` + NsStream + `" to="bob" from="alice"` +
+	exp = `<stream:stream xmlns="` + NsClient +
+		`" xmlns:stream="` + NsStream + `" to="bob" from="alice"` +
 		` id="#3" version="5.3">`
-	assertMarshal(t, exp, s)
+	assertEquals(t, exp, s.String())
 
 	s = &stream{Lang: "en_US"}
-	exp = `<stream:stream xmlns="jabber:client"` +
-		` xmlns:stream="` + NsStream + `" xml:lang="en_US">`
-	assertMarshal(t, exp, s)
+	exp = `<stream:stream xmlns="` + NsClient +
+		`" xmlns:stream="` + NsStream + `" xml:lang="en_US">`
+	assertEquals(t, exp, s.String())
 }
 
 func TestStreamErrorMarshal(t *testing.T) {
@@ -97,32 +103,41 @@ func TestParseStanza(t *testing.T) {
 	if err != nil {
 		t.Fatalf("iq: %v", err)
 	}
-	assertEquals(t, "iq", st.GetName())
-	assertEquals(t, "alice", st.GetTo())
-	assertEquals(t, "bob", st.GetFrom())
-	assertEquals(t, "1", st.GetId())
-	assertEquals(t, "A", st.GetType())
-	assertEquals(t, "en", st.GetLang())
-	if st.GetError() != nil {
-		t.Errorf("iq: error %v", st.GetError())
+	iq, ok := st.(*Iq)
+	if !ok {
+		t.Fatalf("not iq: %v", st)
+	}
+	assertEquals(t, "iq", iq.XMLName.Local)
+	assertEquals(t, "alice", iq.To)
+	assertEquals(t, "bob", iq.From)
+	assertEquals(t, "1", iq.Id)
+	assertEquals(t, "A", iq.Type)
+	assertEquals(t, "en", iq.Lang)
+	if iq.Error != nil {
+		t.Errorf("iq: error %v", iq.Error)
 	}
 	if st.innerxml() == "" {
 		t.Errorf("iq: empty child")
 	}
 	assertEquals(t, "<foo>text</foo>", st.innerxml())
+	assertEquals(t, st.innerxml(), iq.Innerxml)
 
 	str = `<message to="alice" from="bob"/>`
 	st, err = ParseStanza(str)
 	if err != nil {
 		t.Fatalf("message: %v", err)
 	}
-	assertEquals(t, "message", st.GetName())
-	assertEquals(t, "alice", st.GetTo())
-	assertEquals(t, "bob", st.GetFrom())
-	assertEquals(t, "", st.GetId())
-	assertEquals(t, "", st.GetLang())
-	if st.GetError() != nil {
-		t.Errorf("message: error %v", st.GetError())
+	m, ok := st.(*Message)
+	if !ok {
+		t.Fatalf("not message: %v", st)
+	}
+	assertEquals(t, "message", m.XMLName.Local)
+	assertEquals(t, "alice", m.To)
+	assertEquals(t, "bob", m.From)
+	assertEquals(t, "", m.Id)
+	assertEquals(t, "", m.Lang)
+	if m.Error != nil {
+		t.Errorf("message: error %v", m.Error)
 	}
 	if st.innerxml() != "" {
 		t.Errorf("message: child %v", st.innerxml())
@@ -133,7 +148,10 @@ func TestParseStanza(t *testing.T) {
 	if err != nil {
 		t.Fatalf("presence: %v", err)
 	}
-	assertEquals(t, "presence", st.GetName())
+	_, ok = st.(*Presence)
+	if !ok {
+		t.Fatalf("not presence: %v", st)
+	}
 }
 
 func TestMarshalEscaping(t *testing.T) {

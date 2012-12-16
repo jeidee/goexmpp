@@ -6,29 +6,30 @@ package xmpp
 
 import (
 	"bytes"
+	"encoding/xml"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
-	"xml"
 )
 
 func TestReadError(t *testing.T) {
-	r := strings.NewReader(`<stream:error><bad-foo/></stream:error>`)
+	r := strings.NewReader(`<stream:error><bad-foo xmlns="blah"/>` +
+		`</stream:error>`)
 	ch := make(chan interface{})
 	go readXml(r, ch, make(map[string]func(*xml.Name) interface{}))
 	x := <-ch
 	se, ok := x.(*streamError)
 	if !ok {
-		t.Fatalf("not StreamError: %v", reflect.TypeOf(x))
+		t.Fatalf("not StreamError: %T", x)
 	}
 	assertEquals(t, "bad-foo", se.Any.XMLName.Local)
-	assertEquals(t, "", se.Any.XMLName.Space)
+	assertEquals(t, "blah", se.Any.XMLName.Space)
 	if se.Text != nil {
 		t.Errorf("text not nil: %v", se.Text)
 	}
 
-	r = strings.NewReader(`<stream:error><bad-foo/>` +
+	r = strings.NewReader(`<stream:error><bad-foo xmlns="blah"/>` +
 		`<text xml:lang="en" xmlns="` + NsStreams +
 		`">Error text</text></stream:error>`)
 	ch = make(chan interface{})
@@ -39,7 +40,7 @@ func TestReadError(t *testing.T) {
 		t.Fatalf("not StreamError: %v", reflect.TypeOf(x))
 	}
 	assertEquals(t, "bad-foo", se.Any.XMLName.Local)
-	assertEquals(t, "", se.Any.XMLName.Space)
+	assertEquals(t, "blah", se.Any.XMLName.Space)
 	assertEquals(t, "Error text", se.Text.Text)
 	assertEquals(t, "en", se.Text.Lang)
 }
@@ -47,7 +48,7 @@ func TestReadError(t *testing.T) {
 func TestReadStream(t *testing.T) {
 	r := strings.NewReader(`<stream:stream to="foo.com" ` +
 		`from="bar.org" id="42"` +
-		`xmlns="jabber:client" xmlns:stream="` + NsStream +
+		`xmlns="` + NsClient + `" xmlns:stream="` + NsStream +
 		`" version="1.0">`)
 	ch := make(chan interface{})
 	go readXml(r, ch, make(map[string]func(*xml.Name) interface{}))
@@ -94,8 +95,8 @@ func TestWriteError(t *testing.T) {
 func TestWriteStream(t *testing.T) {
 	ss := &stream{To: "foo.org", From: "bar.com", Id: "42", Lang: "en", Version: "1.0"}
 	str := testWrite(ss)
-	exp := `<stream:stream xmlns="jabber:client"` +
-		` xmlns:stream="` + NsStream + `" to="foo.org"` +
+	exp := `<stream:stream xmlns="` + NsClient +
+		`" xmlns:stream="` + NsStream + `" to="foo.org"` +
 		` from="bar.com" id="42" xml:lang="en" version="1.0">`
 	assertEquals(t, exp, str)
 }

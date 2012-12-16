@@ -5,9 +5,8 @@
 package xmpp
 
 import (
+	"encoding/xml"
 	"fmt"
-	"os"
-	"xml"
 )
 
 // This file contains support for roster management, RFC 3921, Section 7.
@@ -17,15 +16,15 @@ var rosterExt Extension = Extension{StanzaHandlers: map[string]func(*xml.Name) i
 // Roster query/result
 type RosterQuery struct {
 	XMLName xml.Name `xml:"jabber:iq:roster query"`
-	Item    []RosterItem
+	Item    []RosterItem `xml:"item"`
 }
 
 // See RFC 3921, Section 7.1.
 type RosterItem struct {
-	XMLName      xml.Name `xml:"item"`
-	Jid          string   `xml:"attr"`
-	Subscription string   `xml:"attr"`
-	Name         string   `xml:"attr"`
+	XMLName      xml.Name `xml:"jabber:iq:roster item"`
+	Jid          string   `xml:"jid,attr"`
+	Subscription string   `xml:"subscription,attr"`
+	Name         string   `xml:"name,attr"`
 	Group        []string
 }
 
@@ -46,28 +45,33 @@ func newRosterQuery(name *xml.Name) interface{} {
 // Synchronously fetch this entity's roster from the server and cache
 // that information. This is called once from a fairly deep call stack
 // as part of XMPP negotiation.
-func fetchRoster(client *Client) os.Error {
+func fetchRoster(client *Client) error {
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
 	iq := &Iq{From: client.Jid.String(), Id: <-Id, Type: "get",
 		Nested: []interface{}{RosterQuery{}}}
-	ch := make(chan os.Error)
+	ch := make(chan error)
 	f := func(st Stanza) bool {
 		defer close(ch)
+		iq, ok := st.(*Iq)
+		if !ok {
+			ch <- fmt.Errorf("response to iq wasn't iq: %s", st)
+			return false
+		}
 		if iq.Type == "error" {
 			ch <- iq.Error
 			return false
 		}
 		var rq *RosterQuery
-		for _, ele := range st.GetNested() {
+		for _, ele := range iq.Nested {
 			if q, ok := ele.(*RosterQuery); ok {
 				rq = q
 				break
 			}
 		}
 		if rq == nil {
-			ch <- os.NewError(fmt.Sprintf(
-				"Roster query result not query: %v", st))
+			ch <- fmt.Errorf(
+				"Roster query result not query: %v", st)
 			return false
 		}
 		for _, item := range rq.Item {
@@ -105,22 +109,27 @@ func startRosterFilter(client *Client) {
 }
 
 func maybeUpdateRoster(client *Client, st Stanza) {
+	iq, ok := st.(*Iq)
+	if !ok {
+		return
+	}
+
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
 	var rq *RosterQuery
-	for _, ele := range st.GetNested() {
+	for _, ele := range iq.Nested {
 		if q, ok := ele.(*RosterQuery); ok {
 			rq = q
 			break
 		}
 	}
-	if st.GetName() == "iq" && st.GetType() == "set" && rq != nil {
+	if iq.Type == "set" && rq != nil {
 		for _, item := range rq.Item {
 			rosterUpdate <- item
 		}
 		// Send a reply.
-		iq := &Iq{To: st.GetFrom(), Id: st.GetId(), Type: "result"}
-		client.Out <- iq
+		reply := &Iq{To: iq.From, Id: iq.Id, Type: "result"}
+		client.Out <- reply
 	}
 }
 
@@ -131,7 +140,7 @@ func feedRoster(rosterCh chan<- []RosterItem, rosterUpdate <-chan RosterItem) {
 		select {
 		case newIt := <-rosterUpdate:
 			if newIt.Subscription == "remove" {
-				roster[newIt.Jid] = RosterItem{}, false
+				delete(roster, newIt.Jid)
 			} else {
 				roster[newIt.Jid] = newIt
 			}
