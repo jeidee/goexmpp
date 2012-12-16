@@ -80,7 +80,7 @@ func (cl *Client) writeTransport(r io.Reader) {
 
 func readXml(r io.Reader, ch chan<- interface{},
 extStanza map[string]func(*xml.Name) interface{}) {
-	if _, ok := Debug.(*noLog) ; ok {
+	if _, ok := Debug.(*noLog) ; !ok {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
 		r = pr
@@ -194,7 +194,7 @@ func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) 
 }
 
 func writeXml(w io.Writer, ch <-chan interface{}) {
-	if _, ok := Debug.(*noLog) ; ok {
+	if _, ok := Debug.(*noLog) ; !ok {
 		pr, pw := io.Pipe()
 		go tee(pr, w, "C: ")
 		w = pw
