@@ -5,7 +5,7 @@
 package main
 
 import (
-	"cjyar/xmpp"
+	xmpp ".."
 	"flag"
 	"fmt"
 	"log"

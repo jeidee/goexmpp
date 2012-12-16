@@ -12,7 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/syslog"
+	"log"
 	"net"
 	"sync"
 )
@@ -37,11 +37,12 @@ const (
 )
 
 var (
-	// If non-nil when NewClient() is called, log messages will be
-	// sent to this writer.
-	Log *syslog.Writer
-	// Threshold for which messages are logged.
-	Loglevel syslog.Priority = syslog.LOG_NOTICE
+	// If any of these are non-nil when NewClient() is called,
+	// they will be used to log messages of the indicated
+	// severity.
+	Warn *log.Logger
+	Info *log.Logger
+	Debug *log.Logger
 )
 
 // This channel may be used as a convenient way to generate a unique
@@ -249,13 +250,13 @@ func tee(r io.Reader, w io.Writer, prefix string) {
 		}
 		buf.Write(c[:n])
 		if c[0] == '\n' || c[0] == '>' {
-			Log.Debug(buf.String())
+			Debug.Print(buf)
 			buf.Reset()
 		}
 	}
 	leftover := buf.String()
 	if leftover != "" {
-		Log.Debug(buf.String())
+		Debug.Print(buf)
 	}
 }
 
@@ -278,17 +279,12 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) error {
 	f := func(st Stanza) bool {
 		iq, ok := st.(*Iq)
 		if !ok {
-			if Log != nil {
-				Log.Err("iq reply not iq; can't start session")
-			}
+			Warnf("iq reply not iq; can't start session")
 			ch <- errors.New("bad session start reply")
 			return false
 		}
 		if iq.Type == "error" {
-			if Log != nil {
-				Log.Err(fmt.Sprintf("Can't start session: %v",
-					iq))
-			}
+			Warnf("Can't start session: %v", iq)
 			ch <- iq.Error
 			return false
 		}
@@ -322,4 +318,22 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) error {
 func (cl *Client) AddFilter(out <-chan Stanza) <-chan Stanza {
 	cl.filterOut <- out
 	return <-cl.filterIn
+}
+
+func Warnf(msg string, args ...interface{}) {
+	if Warn != nil {
+		Warn.Printf(msg, args)
+	}
+}
+
+func Infof(msg string, args ...interface{}) {
+	if Info != nil {
+		Info.Printf(msg, args)
+	}
+}
+
+func Debugf(msg string, args ...interface{}) {
+	if Debug != nil {
+		Debug.Printf(msg, args)
+	}
 }
