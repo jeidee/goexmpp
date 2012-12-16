@@ -55,8 +55,8 @@ type errText struct {
 }
 
 type Features struct {
-	Starttls   *starttls
-	Mechanisms mechs
+	Starttls   *starttls `xml:"urn:ietf:params:xml:ns:xmpp-tls starttls"`
+	Mechanisms mechs     `xml:"urn:ietf:params:xml:ns:xmpp-sasl mechanisms"`
 	Bind       *bindIq
 	Session    *Generic
 	Any        *Generic
@@ -274,7 +274,7 @@ func (u *Generic) String() string {
 func (er *Error) Error() string {
 	buf, err := xml.Marshal(er)
 	if err != nil {
-		Warnf("double bad error: couldn't marshal error")
+		Warn.Logf("double bad error: couldn't marshal error")
 		return "unreadable error"
 	}
 	return string(buf)

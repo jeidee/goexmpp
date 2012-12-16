@@ -50,12 +50,12 @@ func (cl *Client) readTransport(w io.WriteCloser) {
 					continue
 				}
 			}
-			Warnf("read: %s", err)
+			Warn.Logf("read: %s", err)
 			break
 		}
 		nw, err := w.Write(p[:nr])
 		if nw < nr {
-			Warnf("read: %s", err)
+			Warn.Logf("read: %s", err)
 			break
 		}
 	}
@@ -67,12 +67,12 @@ func (cl *Client) writeTransport(r io.Reader) {
 	for {
 		nr, err := r.Read(p)
 		if nr == 0 {
-			Warnf("write: %s", err)
+			Warn.Logf("write: %s", err)
 			break
 		}
 		nw, err := cl.socket.Write(p[:nr])
 		if nw < nr {
-			Warnf("write: %s", err)
+			Warn.Logf("write: %s", err)
 			break
 		}
 	}
@@ -80,7 +80,7 @@ func (cl *Client) writeTransport(r io.Reader) {
 
 func readXml(r io.Reader, ch chan<- interface{},
 extStanza map[string]func(*xml.Name) interface{}) {
-	if Debug != nil {
+	if _, ok := Debug.(*noLog) ; ok {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
 		r = pr
@@ -96,7 +96,7 @@ Loop:
 		t, err := p.Token()
 		if t == nil {
 			if err != io.EOF {
-				Warnf("read: %s", err)
+				Warn.Logf("read: %s", err)
 			}
 			break
 		}
@@ -112,7 +112,7 @@ Loop:
 		case NsStream + " stream":
 			st, err := parseStream(se)
 			if err != nil {
-				Warnf("unmarshal stream: %s", err)
+				Warn.Logf("unmarshal stream: %s", err)
 				break Loop
 			}
 			ch <- st
@@ -134,14 +134,14 @@ Loop:
 			obj = &Presence{}
 		default:
 			obj = &Generic{}
-			Infof("Ignoring unrecognized: %s %s", se.Name.Space,
+			Info.Logf("Ignoring unrecognized: %s %s", se.Name.Space,
 				se.Name.Local)
 		}
 
 		// Read the complete XML stanza.
 		err = p.DecodeElement(obj, &se)
 		if err != nil {
-			Warnf("unmarshal: %s", err)
+			Warn.Logf("unmarshal: %s", err)
 			break Loop
 		}
 
@@ -151,7 +151,7 @@ Loop:
 		if st, ok := obj.(Stanza); ok {
 			err = parseExtended(st, extStanza)
 			if err != nil {
-				Warnf("ext unmarshal: %s", err)
+				Warn.Logf("ext unmarshal: %s", err)
 				break Loop
 			}
 		}
@@ -194,7 +194,7 @@ func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) 
 }
 
 func writeXml(w io.Writer, ch <-chan interface{}) {
-	if Debug != nil {
+	if _, ok := Debug.(*noLog) ; ok {
 		pr, pw := io.Pipe()
 		go tee(pr, w, "C: ")
 		w = pw
@@ -213,12 +213,12 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 		if st, ok := obj.(*stream); ok {
 			_, err := w.Write([]byte(st.String()))
 			if err != nil {
-				Warnf("write: %s", err)
+				Warn.Logf("write: %s", err)
 			}
 		} else {
 			err := enc.Encode(obj)
 			if err != nil {
-				Warnf("marshal: %s", err)
+				Warn.Logf("marshal: %s", err)
 				break
 			}
 		}
@@ -258,7 +258,7 @@ Loop:
 			}
 			st, ok := x.(Stanza)
 			if !ok {
-				Warnf("Unhandled non-stanza: %v", x)
+				Warn.Logf("Unhandled non-stanza: %v", x)
 				continue
 			}
 			if handlers[st.GetId()] != nil {
@@ -299,7 +299,7 @@ Loop:
 				break Loop
 			}
 			if x == nil {
-				Infof("Refusing to send nil stanza")
+				Info.Logf("Refusing to send nil stanza")
 				continue
 			}
 			srvOut <- x
@@ -317,7 +317,7 @@ Loop:
 		select {
 		case newFilterOut := <-filterOut:
 			if newFilterOut == nil {
-				Warnf("Received nil filter")
+				Warn.Logf("Received nil filter")
 				filterIn <- nil
 				continue
 			}
@@ -344,7 +344,7 @@ func handleStream(ss *stream) {
 }
 
 func (cl *Client) handleStreamError(se *streamError) {
-	Infof("Received stream error: %v", se)
+	Info.Logf("Received stream error: %v", se)
 	close(cl.Out)
 }
 
@@ -389,7 +389,7 @@ func (cl *Client) handleTls(t *starttls) {
 	cl.socket = tls
 	cl.socketSync.Wait()
 
-	Infof("TLS negotiation succeeded.")
+	Info.Logf("TLS negotiation succeeded.")
 	cl.Features = nil
 
 	// Now re-send the initial handshake message to start the new
@@ -435,7 +435,7 @@ func (cl *Client) handleSasl(srv *auth) {
 		b64 := base64.StdEncoding
 		str, err := b64.DecodeString(srv.Chardata)
 		if err != nil {
-			Warnf("SASL challenge decode: %s", err)
+			Warn.Logf("SASL challenge decode: %s", err)
 			return
 		}
 		srvMap := parseSasl(string(str))
@@ -446,9 +446,9 @@ func (cl *Client) handleSasl(srv *auth) {
 			cl.saslDigest2(srvMap)
 		}
 	case "failure":
-		Infof("SASL authentication failed")
+		Info.Logf("SASL authentication failed")
 	case "success":
-		Infof("Sasl authentication succeeded")
+		Info.Logf("Sasl authentication succeeded")
 		cl.Features = nil
 		ss := &stream{To: cl.Jid.Domain, Version: Version}
 		cl.xmlOut <- ss
@@ -464,7 +464,7 @@ func (cl *Client) saslDigest1(srvMap map[string]string) {
 		}
 	}
 	if !hasAuth {
-		Warnf("Server doesn't support SASL auth")
+		Warn.Logf("Server doesn't support SASL auth")
 		return
 	}
 
@@ -494,7 +494,7 @@ func (cl *Client) saslDigest1(srvMap map[string]string) {
 	randSize.Lsh(big.NewInt(1), 64)
 	cnonce, err := rand.Int(rand.Reader, randSize)
 	if err != nil {
-		Warnf("SASL rand: %s", err)
+		Warn.Logf("SASL rand: %s", err)
 		return
 	}
 	cnonceStr := fmt.Sprintf("%016x", cnonce)
@@ -600,10 +600,10 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	f := func(st Stanza) bool {
 		iq, ok := st.(*Iq)
 		if !ok {
-			Warnf("non-iq response")
+			Warn.Logf("non-iq response")
 		}
 		if iq.Type == "error" {
-			Warnf("Resource binding failed")
+			Warn.Logf("Resource binding failed")
 			return false
 		}
 		var bindRepl *bindIq
@@ -614,21 +614,21 @@ func (cl *Client) bind(bindAdv *bindIq) {
 			}
 		}
 		if bindRepl == nil {
-			Warnf("Bad bind reply: %v", iq)
+			Warn.Logf("Bad bind reply: %v", iq)
 			return false
 		}
 		jidStr := bindRepl.Jid
 		if jidStr == nil || *jidStr == "" {
-			Warnf("Can't bind empty resource")
+			Warn.Logf("Can't bind empty resource")
 			return false
 		}
 		jid := new(JID)
 		if err := jid.Set(*jidStr); err != nil {
-			Warnf("Can't parse JID %s: %s", *jidStr, err)
+			Warn.Logf("Can't parse JID %s: %s", *jidStr, err)
 			return false
 		}
 		cl.Jid = *jid
-		Infof("Bound resource: %s", cl.Jid.String())
+		Info.Logf("Bound resource: %s", cl.Jid.String())
 		cl.bindDone()
 		return false
 	}
