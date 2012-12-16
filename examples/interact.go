@@ -8,17 +8,26 @@ import (
 	xmpp ".."
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 )
 
+type StdLogger struct {
+}
+
+func (s *StdLogger) Log(v ...interface{}) {
+	log.Println(v)
+}
+
+func (s *StdLogger) Logf(fmt string, v ...interface{}) {
+	log.Printf(fmt, v)
+}
+
 func init() {
-	r, w := io.Pipe()
-	go io.Copy(os.Stdout, r)
-	xmpp.Debug = log.New(w, "debug: ", 0)
-	xmpp.Info = log.New(w, "info: ", 0)
-	xmpp.Warn = log.New(w, "warn: ", 0)
+	logger := &StdLogger{}
+	xmpp.Debug = logger
+	xmpp.Info = logger
+	xmpp.Warn = logger
 }
 
 // Demonstrate the API, and allow the user to interact with an XMPP
