@@ -8,9 +8,18 @@ import (
 	xmpp ".."
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 )
+
+func init() {
+	r, w := io.Pipe()
+	go io.Copy(os.Stdout, r)
+	xmpp.Debug = log.New(w, "debug: ", 0)
+	xmpp.Info = log.New(w, "info: ", 0)
+	xmpp.Warn = log.New(w, "warn: ", 0)
+}
 
 // Demonstrate the API, and allow the user to interact with an XMPP
 // server via the terminal.
