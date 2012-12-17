@@ -26,7 +26,7 @@ func (s *StdLogger) Logf(fmt string, v ...interface{}) {
 
 func init() {
 	logger := &StdLogger{}
-	xmpp.Debug = logger
+	// xmpp.Debug = logger
 	xmpp.Info = logger
 	xmpp.Warn = logger
 
