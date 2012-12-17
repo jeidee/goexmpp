@@ -148,7 +148,7 @@ Loop:
 		// If it's a Stanza, we try to unmarshal its innerxml
 		// into objects of the appropriate respective
 		// types. This is specified by our extensions.
-		if st, ok := obj.(Stanzer) ; ok {
+		if st, ok := obj.(Stanza) ; ok {
 			err = parseExtended(st.GetHeader(), extStanza)
 			if err != nil {
 				Warn.Logf("ext unmarshal: %s", err)
@@ -250,7 +250,7 @@ Loop:
 				cl.handleTls(obj)
 			case *auth:
 				cl.handleSasl(obj)
-			case Stanzer:
+			case Stanza:
 				st = obj.GetHeader()
 			default:
 				Warn.Logf("Unhandled non-stanza: %T %#v", x, x)

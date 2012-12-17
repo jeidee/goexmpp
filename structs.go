@@ -77,7 +77,7 @@ type auth struct {
 	Any       *Generic
 }
 
-type Stanzer interface {
+type Stanza interface {
 	GetHeader() *Header
 }
 
@@ -102,7 +102,7 @@ type Message struct {
 	Body     *Generic `xml:"body"`
 	Thread   *Generic `xml:"thread"`
 }
-var _ Stanzer = &Message{}
+var _ Stanza = &Message{}
 
 // presence stanza
 type Presence struct {
@@ -112,14 +112,14 @@ type Presence struct {
 	Status   *Generic `xml:"status"`
 	Priority *Generic `xml:"priority"`
 }
-var _ Stanzer = &Presence{}
+var _ Stanza = &Presence{}
 
 // iq stanza
 type Iq struct {
 	XMLName  xml.Name `xml:"iq"`
 	Header
 }
-var _ Stanzer = &Iq{}
+var _ Stanza = &Iq{}
 
 // Describes an XMPP stanza error. See RFC 3920, Section 9.3.
 type Error struct {
