@@ -74,7 +74,7 @@ type mechs struct {
 type auth struct {
 	XMLName   xml.Name
 	Chardata  string `xml:",chardata"`
-	Mechanism string `xml:"mechanism,attr"`
+	Mechanism string `xml:"mechanism,attr,omitempty"`
 	Any       *Generic
 }
 
