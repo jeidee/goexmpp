@@ -48,7 +48,7 @@ func newRosterQuery(name *xml.Name) interface{} {
 func fetchRoster(client *Client) error {
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
-	iq := &Iq{Stanza: Stanza{From: client.Jid.String(), Type: "get",
+	iq := &Iq{Header: Header{From: client.Jid.String(), Type: "get",
 		Id: <-Id, Nested: []interface{}{RosterQuery{}}}}
 	ch := make(chan error)
 	f := func(v interface{}) bool {
@@ -128,7 +128,7 @@ func maybeUpdateRoster(client *Client, st interface{}) {
 			rosterUpdate <- item
 		}
 		// Send a reply.
-		reply := &Iq{Stanza: Stanza{To: iq.From, Id: iq.Id,
+		reply := &Iq{Header: Header{To: iq.From, Id: iq.Id,
 			Type: "result"}}
 		client.Out <- reply
 	}

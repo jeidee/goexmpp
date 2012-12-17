@@ -89,7 +89,7 @@ func TestStreamErrorMarshal(t *testing.T) {
 }
 
 func TestIqMarshal(t *testing.T) {
-	iq := &Iq{Stanza: Stanza{Type: "set", Id: "3",
+	iq := &Iq{Header: Header{Type: "set", Id: "3",
 		Nested: []interface{}{Generic{XMLName: xml.Name{Space: NsBind,
 			Local: "bind"}}}}}
 	exp := `<iq id="3" type="set"><bind xmlns="` + NsBind +

@@ -268,7 +268,7 @@ func (cl *Client) bindDone() {
 // Presence struct.  See RFC 3921, Section 3.
 func (cl *Client) StartSession(getRoster bool, pr *Presence) error {
 	id := <-Id
-	iq := &Iq{Stanza: Stanza{To: cl.Jid.Domain, Id: id, Type: "set",
+	iq := &Iq{Header: Header{To: cl.Jid.Domain, Id: id, Type: "set",
 		Nested: []interface{}{Generic{XMLName:
 			xml.Name{Space: NsSession, Local: "session"}}}}}
 	ch := make(chan error)

@@ -77,9 +77,13 @@ type auth struct {
 	Any       *Generic
 }
 
+type Stanzer interface {
+	GetHeader() *Header
+}
+
 // One of the three core XMPP stanza types: iq, message, presence. See
 // RFC3920, section 9.
-type Stanza struct {
+type Header struct {
 	To       string   `xml:"to,attr,omitempty"`
 	From     string   `xml:"from,attr,omitempty"`
 	Id       string   `xml:"id,attr,omitempty"`
@@ -93,26 +97,29 @@ type Stanza struct {
 // message stanza
 type Message struct {
 	XMLName  xml.Name `xml:"message"`
-	Stanza
+	Header
 	Subject  *Generic `xml:"subject"`
 	Body     *Generic `xml:"body"`
 	Thread   *Generic `xml:"thread"`
 }
+var _ Stanzer = &Message{}
 
 // presence stanza
 type Presence struct {
 	XMLName  xml.Name `xml:"presence"`
-	Stanza
+	Header
 	Show     *Generic `xml:"show"`
 	Status   *Generic `xml:"status"`
 	Priority *Generic `xml:"priority"`
 }
+var _ Stanzer = &Presence{}
 
 // iq stanza
 type Iq struct {
 	XMLName  xml.Name `xml:"iq"`
-	Stanza
+	Header
 }
+var _ Stanzer = &Iq{}
 
 // Describes an XMPP stanza error. See RFC 3920, Section 9.3.
 type Error struct {
@@ -222,6 +229,18 @@ func parseStream(se xml.StartElement) (*stream, error) {
 	return s, nil
 }
 
+func (iq *Iq) GetHeader() *Header {
+	return &iq.Header
+}
+
+func (m *Message) GetHeader() *Header {
+	return &m.Header
+}
+
+func (p *Presence) GetHeader() *Header {
+	return &p.Header
+}
+
 func (u *Generic) String() string {
 	if u == nil {
 		return "nil"
@@ -249,16 +268,4 @@ var bindExt Extension = Extension{StanzaHandlers: map[string]func(*xml.Name) int
 
 func newBind(name *xml.Name) interface{} {
 	return &bindIq{}
-}
-
-func getStanza(v interface{}) *Stanza {
-	switch s := v.(type) {
-	case *Iq:
-		return &s.Stanza
-	case *Message:
-		return &s.Stanza
-	case *Presence:
-		return &s.Stanza
-	}
-	return nil
 }

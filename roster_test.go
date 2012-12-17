@@ -13,7 +13,7 @@ import (
 // This is mostly just tests of the roster data structures.
 
 func TestRosterIqMarshal(t *testing.T) {
-	iq := &Iq{Stanza: Stanza{From: "from", Lang: "en",
+	iq := &Iq{Header: Header{From: "from", Lang: "en",
 		Nested: []interface{}{RosterQuery{}}}}
 	exp := `<iq from="from" xml:lang="en"><query xmlns="` +
 		NsRoster + `"></query></iq>`
@@ -26,7 +26,7 @@ func TestRosterIqUnmarshal(t *testing.T) {
 	iq := Iq{}
 	xml.Unmarshal([]byte(str), &iq)
 	m := map[string]func(*xml.Name) interface{}{NsRoster: newRosterQuery}
-	err := parseExtended(&iq.Stanza, m)
+	err := parseExtended(&iq.Header, m)
 	if err != nil {
 		t.Fatalf("parseExtended: %v", err)
 	}

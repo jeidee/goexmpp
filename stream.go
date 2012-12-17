@@ -148,8 +148,8 @@ Loop:
 		// If it's a Stanza, we try to unmarshal its innerxml
 		// into objects of the appropriate respective
 		// types. This is specified by our extensions.
-		if st := getStanza(obj) ; st != nil {
-			err = parseExtended(st, extStanza)
+		if st, ok := obj.(Stanzer) ; ok {
+			err = parseExtended(st.GetHeader(), extStanza)
 			if err != nil {
 				Warn.Logf("ext unmarshal: %s", err)
 				break Loop
@@ -161,7 +161,7 @@ Loop:
 	}
 }
 
-func parseExtended(st *Stanza, extStanza map[string]func(*xml.Name) interface{}) error {
+func parseExtended(st *Header, extStanza map[string]func(*xml.Name) interface{}) error {
 	// Now parse the stanza's innerxml to find the string that we
 	// can unmarshal this nested element from.
 	reader := strings.NewReader(st.Innerxml)
@@ -238,7 +238,7 @@ Loop:
 			if !ok {
 				break Loop
 			}
-			var st *Stanza
+			var st *Header
 			switch obj := x.(type) {
 			case *stream:
 				handleStream(obj)
@@ -250,8 +250,8 @@ Loop:
 				cl.handleTls(obj)
 			case *auth:
 				cl.handleSasl(obj)
-			case *Iq, *Message, *Presence:
-				st = getStanza(obj)
+			case Stanzer:
+				st = obj.GetHeader()
 			default:
 				Warn.Logf("Unhandled non-stanza: %T %#v", x, x)
 			}
@@ -596,7 +596,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	if res != "" {
 		bindReq.Resource = &res
 	}
-	msg := &Iq{Stanza: Stanza{Type: "set", Id: <-Id,
+	msg := &Iq{Header: Header{Type: "set", Id: <-Id,
 		Nested: []interface{}{bindReq}}}
 	f := func(st interface{}) bool {
 		iq, ok := st.(*Iq)
