@@ -29,7 +29,7 @@ import (
 type stanzaHandler struct {
 	id string
 	// Return true means pass this to the application
-	f func(interface{}) bool
+	f func(Stanza) bool
 }
 
 // BUG(cjyar) Review all these *Client receiver methods. They should
@@ -225,10 +225,10 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	}
 }
 
-func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}) {
+func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
 	defer close(cliOut)
 
-	handlers := make(map[string]func(interface{}) bool)
+	handlers := make(map[string]func(Stanza) bool)
 Loop:
 	for {
 		select {
@@ -238,7 +238,6 @@ Loop:
 			if !ok {
 				break Loop
 			}
-			var st *Header
 			switch obj := x.(type) {
 			case *stream:
 				handleStream(obj)
@@ -251,23 +250,18 @@ Loop:
 			case *auth:
 				cl.handleSasl(obj)
 			case Stanza:
-				st = obj.GetHeader()
+				send := true
+				id := obj.GetHeader().Id
+				if handlers[id] != nil {
+					f := handlers[id]
+					delete(handlers, id)
+					send = f(obj)
+				}
+				if send {
+					cliOut <- obj
+				}
 			default:
 				Warn.Logf("Unhandled non-stanza: %T %#v", x, x)
-			}
-
-			if st == nil {
-				continue
-			}
-
-			send := true
-			if handlers[st.Id] != nil {
-				f := handlers[st.Id]
-				delete(handlers, st.Id)
-				send = f(x)
-			}
-			if send {
-				cliOut <- x
 			}
 		}
 	}
@@ -277,11 +271,11 @@ Loop:
 // the app might inject something inappropriate into our negotiations
 // with the server. The control channel controls this loop's
 // activity.
-func writeStream(srvOut chan<- interface{}, cliIn <-chan interface{},
+func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
 control <-chan int) {
 	defer close(srvOut)
 
-	var input <-chan interface{}
+	var input <-chan Stanza
 Loop:
 	for {
 		select {
@@ -309,8 +303,8 @@ Loop:
 
 // Stanzas from the remote go up through a stack of filters to the
 // app. This function manages the filters.
-func filterTop(filterOut <-chan <-chan interface{}, filterIn chan<- <-chan interface{},
-topFilter <-chan interface{}, app chan<- interface{}) {
+func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
+topFilter <-chan Stanza, app chan<- Stanza) {
 	defer close(app)
 Loop:
 	for {
@@ -333,7 +327,7 @@ Loop:
 	}
 }
 
-func filterBottom(from <-chan interface{}, to chan<- interface{}) {
+func filterBottom(from <-chan Stanza, to chan<- Stanza) {
 	defer close(to)
 	for data := range from {
 		to <- data
@@ -598,7 +592,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	}
 	msg := &Iq{Header: Header{Type: "set", Id: <-Id,
 		Nested: []interface{}{bindReq}}}
-	f := func(st interface{}) bool {
+	f := func(st Stanza) bool {
 		iq, ok := st.(*Iq)
 		if !ok {
 			Warn.Log("non-iq response")
@@ -643,7 +637,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 // available on the normal Client.In channel. The stanza handler
 // must not read from that channel, as deliveries on it cannot proceed
 // until the handler returns true or false.
-func (cl *Client) HandleStanza(id string, f func(interface{}) bool) {
+func (cl *Client) HandleStanza(id string, f func(Stanza) bool) {
 	h := &stanzaHandler{id: id, f: f}
 	cl.handlers <- h
 }

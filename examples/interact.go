@@ -63,7 +63,7 @@ func main() {
 		fmt.Printf("%d: %v\n", i, entry)
 	}
 
-	go func(ch <-chan interface{}) {
+	go func(ch <-chan xmpp.Stanza) {
 		for obj := range ch {
 			fmt.Printf("s: %v\n", obj)
 		}
@@ -89,7 +89,7 @@ func main() {
 			fmt.Println("Couldn't find start element")
 			break
 		}
-		var stan interface{}
+		var stan xmpp.Stanza
 		switch se.Name.Local {
 		case "iq":
 			stan = &xmpp.Iq{}

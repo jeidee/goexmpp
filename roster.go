@@ -51,7 +51,7 @@ func fetchRoster(client *Client) error {
 	iq := &Iq{Header: Header{From: client.Jid.String(), Type: "get",
 		Id: <-Id, Nested: []interface{}{RosterQuery{}}}}
 	ch := make(chan error)
-	f := func(v interface{}) bool {
+	f := func(v Stanza) bool {
 		defer close(ch)
 		iq, ok := v.(*Iq)
 		if !ok {
@@ -91,9 +91,9 @@ func fetchRoster(client *Client) error {
 // the roster feeder, which is the goroutine that provides data on
 // client.Roster.
 func startRosterFilter(client *Client) {
-	out := make(chan interface{})
+	out := make(chan Stanza)
 	in := client.AddFilter(out)
-	go func(in <-chan interface{}, out chan<- interface{}) {
+	go func(in <-chan Stanza, out chan<- Stanza) {
 		defer close(out)
 		for st := range in {
 			maybeUpdateRoster(client, st)
