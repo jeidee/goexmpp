@@ -245,7 +245,7 @@ func tee(r io.Reader, w io.Writer, prefix string) {
 		buf.Write(c[:n])
 		if c[0] == '\n' || c[0] == '>' {
 			Debug.Log(buf)
-			buf.Reset()
+			buf = bytes.NewBuffer([]uint8(prefix))
 		}
 	}
 	leftover := buf.String()
