@@ -68,13 +68,13 @@ type starttls struct {
 }
 
 type mechs struct {
-	Mechanism []string
+	Mechanism []string `xml:"urn:ietf:params:xml:ns:xmpp-sasl mechanism"`
 }
 
 type auth struct {
 	XMLName   xml.Name
-	Chardata  string `xml:"chardata"`
-	Mechanism string `xml:"attr"`
+	Chardata  string `xml:",chardata"`
+	Mechanism string `xml:"mechanism,attr"`
 	Any       *Generic
 }
 
