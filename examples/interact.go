@@ -7,21 +7,23 @@ package main
 import (
 	xmpp ".."
 	"crypto/tls"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 )
 
 type StdLogger struct {
 }
 
 func (s *StdLogger) Log(v ...interface{}) {
-	log.Println(v)
+	log.Println(v...)
 }
 
 func (s *StdLogger) Logf(fmt string, v ...interface{}) {
-	log.Printf(fmt, v)
+	log.Printf(fmt, v...)
 }
 
 func init() {
@@ -61,7 +63,7 @@ func main() {
 		fmt.Printf("%d: %v\n", i, entry)
 	}
 
-	go func(ch <-chan xmpp.Stanza) {
+	go func(ch <-chan interface{}) {
 		for obj := range ch {
 			fmt.Printf("s: %v\n", obj)
 		}
@@ -75,7 +77,31 @@ func main() {
 			break
 		}
 		s := string(p)
-		stan, err := xmpp.ParseStanza(s)
+		dec := xml.NewDecoder(strings.NewReader(s))
+		t, err := dec.Token()
+		if err != nil {
+			fmt.Printf("token: %s\n", err)
+			break
+		}
+		var se *xml.StartElement
+		var ok bool
+		if se, ok = t.(*xml.StartElement) ; !ok {
+			fmt.Println("Couldn't find start element")
+			break
+		}
+		var stan interface{}
+		switch se.Name.Local {
+		case "iq":
+			stan = &xmpp.Iq{}
+		case "message":
+			stan = &xmpp.Message{}
+		case "presence":
+			stan = &xmpp.Presence{}
+		default:
+			fmt.Println("Can't parse non-stanza.")
+			continue
+		}
+		err = dec.Decode(stan)
 		if err == nil {
 			c.Out <- stan
 		} else {

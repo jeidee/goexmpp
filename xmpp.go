@@ -82,18 +82,18 @@ type Client struct {
 	// Incoming XMPP stanzas from the server will be published on
 	// this channel. Information which is only used by this
 	// library to set up the XMPP stream will not appear here.
-	In <-chan Stanza
+	In <-chan interface{}
 	// Outgoing XMPP stanzas to the server should be sent to this
 	// channel.
-	Out    chan<- Stanza
+	Out    chan<- interface{}
 	xmlOut chan<- interface{}
 	// Features advertised by the remote. This will be updated
 	// asynchronously as new features are received throughout the
 	// connection process. It should not be updated once
 	// StartSession() returns.
 	Features  *Features
-	filterOut chan<- <-chan Stanza
-	filterIn  <-chan <-chan Stanza
+	filterOut chan<- <-chan interface{}
+	filterIn  <-chan <-chan interface{}
 }
 
 // Connect to the appropriate server and authenticate as the given JID
@@ -200,23 +200,23 @@ func startXmlWriter(w io.WriteCloser) chan<- interface{} {
 	return ch
 }
 
-func (cl *Client) startStreamReader(xmlIn <-chan interface{}, srvOut chan<- interface{}) <-chan Stanza {
-	ch := make(chan Stanza)
+func (cl *Client) startStreamReader(xmlIn <-chan interface{}, srvOut chan<- interface{}) <-chan interface{} {
+	ch := make(chan interface{})
 	go cl.readStream(xmlIn, ch)
 	return ch
 }
 
-func (cl *Client) startStreamWriter(xmlOut chan<- interface{}) chan<- Stanza {
-	ch := make(chan Stanza)
+func (cl *Client) startStreamWriter(xmlOut chan<- interface{}) chan<- interface{} {
+	ch := make(chan interface{})
 	go writeStream(xmlOut, ch, cl.inputControl)
 	return ch
 }
 
-func (cl *Client) startFilter(srvIn <-chan Stanza) <-chan Stanza {
-	cliIn := make(chan Stanza)
-	filterOut := make(chan (<-chan Stanza))
-	filterIn := make(chan (<-chan Stanza))
-	nullFilter := make(chan Stanza)
+func (cl *Client) startFilter(srvIn <-chan interface{}) <-chan interface{} {
+	cliIn := make(chan interface{})
+	filterOut := make(chan (<-chan interface{}))
+	filterIn := make(chan (<-chan interface{}))
+	nullFilter := make(chan interface{})
 	go filterBottom(srvIn, nullFilter)
 	go filterTop(filterOut, filterIn, nullFilter, cliIn)
 	cl.filterOut = filterOut
@@ -268,9 +268,11 @@ func (cl *Client) bindDone() {
 // Presence struct.  See RFC 3921, Section 3.
 func (cl *Client) StartSession(getRoster bool, pr *Presence) error {
 	id := <-Id
-	iq := &Iq{To: cl.Jid.Domain, Id: id, Type: "set", Nested: []interface{}{Generic{XMLName: xml.Name{Space: NsSession, Local: "session"}}}}
+	iq := &Iq{Stanza: Stanza{To: cl.Jid.Domain, Id: id, Type: "set",
+		Nested: []interface{}{Generic{XMLName:
+			xml.Name{Space: NsSession, Local: "session"}}}}}
 	ch := make(chan error)
-	f := func(st Stanza) bool {
+	f := func(st interface{}) bool {
 		iq, ok := st.(*Iq)
 		if !ok {
 			Warn.Log("iq reply not iq; can't start session")
@@ -309,7 +311,7 @@ func (cl *Client) StartSession(getRoster bool, pr *Presence) error {
 // filter's output channel is given to this function, and it returns a
 // new input channel which the filter should read from. When its input
 // channel closes, the filter should close its output channel.
-func (cl *Client) AddFilter(out <-chan Stanza) <-chan Stanza {
+func (cl *Client) AddFilter(out <-chan interface{}) <-chan interface{} {
 	cl.filterOut <- out
 	return <-cl.filterIn
 }

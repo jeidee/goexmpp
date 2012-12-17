@@ -9,7 +9,6 @@ package xmpp
 import (
 	"bytes"
 	"encoding/xml"
-	"errors"
 	"flag"
 	"fmt"
 	// BUG(cjyar): We should use stringprep
@@ -80,75 +79,40 @@ type auth struct {
 
 // One of the three core XMPP stanza types: iq, message, presence. See
 // RFC3920, section 9.
-type Stanza interface {
-	// // Returns "iq", "message", or "presence".
-	// GetName() string
-	// // The to attribute.
-	// GetTo() string
-	// // The from attribute.
-	// GetFrom() string
-	// The id attribute. TODO maybe remove this.
-	GetId() string
-	// // The type attribute.
-	// GetType() string
-	// // The xml:lang attribute.
-	// GetLang() string
-	// // A nested error element, if any.
-	// GetError() *Error
-	// // Zero or more (non-error) nested elements. These will be in
-	// // namespaces managed by extensions.
-	// GetNested() []interface{}
-	addNested(interface{})
-	innerxml() string
+type Stanza struct {
+	To       string   `xml:"to,attr,omitempty"`
+	From     string   `xml:"from,attr,omitempty"`
+	Id       string   `xml:"id,attr,omitempty"`
+	Type     string   `xml:"type,attr,omitempty"`
+	Lang     string   `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
+	Innerxml string   `xml:",innerxml"`
+	Error    *Error
+	Nested   []interface{}
 }
 
 // message stanza
 type Message struct {
 	XMLName  xml.Name `xml:"message"`
-	To       string   `xml:"to,attr,omitempty"`
-	From     string   `xml:"from,attr,omitempty"`
-	Id       string   `xml:"id,attr,omitempty"`
-	Type     string   `xml:"type,attr,omitempty"`
-	Lang     string   `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
-	Innerxml string   `xml:",innerxml"`
-	Error    *Error
+	Stanza
 	Subject  *Generic `xml:"subject"`
 	Body     *Generic `xml:"body"`
 	Thread   *Generic `xml:"thread"`
-	Nested   []interface{}
 }
-var _ Stanza = &Message{}
 
 // presence stanza
 type Presence struct {
 	XMLName  xml.Name `xml:"presence"`
-	To       string   `xml:"to,attr,omitempty"`
-	From     string   `xml:"from,attr,omitempty"`
-	Id       string   `xml:"id,attr,omitempty"`
-	Type     string   `xml:"type,attr,omitempty"`
-	Lang     string   `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
-	Innerxml string   `xml:",innerxml"`
-	Error    *Error
+	Stanza
 	Show     *Generic `xml:"show"`
 	Status   *Generic `xml:"status"`
 	Priority *Generic `xml:"priority"`
-	Nested   []interface{}
 }
-var _ Stanza = &Presence{}
 
 // iq stanza
 type Iq struct {
 	XMLName  xml.Name `xml:"iq"`
-	To       string   `xml:"to,attr,omitempty"`
-	From     string   `xml:"from,attr,omitempty"`
-	Id       string   `xml:"id,attr,omitempty"`
-	Type     string   `xml:"type,attr,omitempty"`
-	Lang     string   `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
-	Innerxml string   `xml:",innerxml"`
-	Error    *Error
-	Nested   []interface{}
+	Stanza
 }
-var _ Stanza = &Iq{}
 
 // Describes an XMPP stanza error. See RFC 3920, Section 9.3.
 type Error struct {
@@ -280,77 +244,21 @@ func (er *Error) Error() string {
 	return string(buf)
 }
 
-func (m *Message) GetId() string {
-	return m.Id
-}
-
-func (m *Message) addNested(n interface{}) {
-	m.Nested = append(m.Nested, n)
-}
-
-func (m *Message) innerxml() string {
-	return m.Innerxml
-}
-
-func (p *Presence) GetId() string {
-	return p.Id
-}
-
-func (p *Presence) addNested(n interface{}) {
-	p.Nested = append(p.Nested, n)
-}
-
-func (p *Presence) innerxml() string {
-	return p.Innerxml
-}
-
-func (iq *Iq) GetId() string {
-	return iq.Id
-}
-
-func (iq *Iq) addNested(n interface{}) {
-	iq.Nested = append(iq.Nested, n)
-}
-
-func (iq *Iq) innerxml() string {
-	return iq.Innerxml
-}
-
-
-// Parse a string into a struct implementing Stanza -- this will be
-// either an Iq, a Message, or a Presence.
-func ParseStanza(str string) (Stanza, error) {
-	r := strings.NewReader(str)
-	p := xml.NewDecoder(r)
-	tok, err := p.Token()
-	if err != nil {
-		return nil, err
-	}
-	se, ok := tok.(xml.StartElement)
-	if !ok {
-		return nil, errors.New("Not a start element")
-	}
-	var stan Stanza
-	switch se.Name.Local {
-	case "iq":
-		stan = &Iq{}
-	case "message":
-		stan = &Message{}
-	case "presence":
-		stan = &Presence{}
-	default:
-		return nil, errors.New("Not iq, message, or presence")
-	}
-	err = p.DecodeElement(stan, &se)
-	if err != nil {
-		return nil, err
-	}
-	return stan, nil
-}
-
 var bindExt Extension = Extension{StanzaHandlers: map[string]func(*xml.Name) interface{}{NsBind: newBind},
 	Start: func(cl *Client) {}}
 
 func newBind(name *xml.Name) interface{} {
 	return &bindIq{}
+}
+
+func getStanza(v interface{}) *Stanza {
+	switch s := v.(type) {
+	case *Iq:
+		return &s.Stanza
+	case *Message:
+		return &s.Stanza
+	case *Presence:
+		return &s.Stanza
+	}
+	return nil
 }

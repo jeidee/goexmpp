@@ -29,7 +29,7 @@ import (
 type stanzaHandler struct {
 	id string
 	// Return true means pass this to the application
-	f func(Stanza) bool
+	f func(interface{}) bool
 }
 
 // BUG(cjyar) Review all these *Client receiver methods. They should
@@ -148,7 +148,7 @@ Loop:
 		// If it's a Stanza, we try to unmarshal its innerxml
 		// into objects of the appropriate respective
 		// types. This is specified by our extensions.
-		if st, ok := obj.(Stanza); ok {
+		if st := getStanza(obj) ; st != nil {
 			err = parseExtended(st, extStanza)
 			if err != nil {
 				Warn.Logf("ext unmarshal: %s", err)
@@ -161,10 +161,10 @@ Loop:
 	}
 }
 
-func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) error {
+func parseExtended(st *Stanza, extStanza map[string]func(*xml.Name) interface{}) error {
 	// Now parse the stanza's innerxml to find the string that we
 	// can unmarshal this nested element from.
-	reader := strings.NewReader(st.innerxml())
+	reader := strings.NewReader(st.Innerxml)
 	p := xml.NewDecoder(reader)
 	for {
 		t, err := p.Token()
@@ -185,7 +185,7 @@ func parseExtended(st Stanza, extStanza map[string]func(*xml.Name) interface{}) 
 				if err != nil {
 					return err
 				}
-				st.addNested(nested)
+				st.Nested = append(st.Nested, nested)
 			}
 		}
 	}
@@ -225,10 +225,10 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	}
 }
 
-func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- Stanza) {
+func (cl *Client) readStream(srvIn <-chan interface{}, cliOut chan<- interface{}) {
 	defer close(cliOut)
 
-	handlers := make(map[string]func(Stanza) bool)
+	handlers := make(map[string]func(interface{}) bool)
 Loop:
 	for {
 		select {
@@ -238,7 +238,7 @@ Loop:
 			if !ok {
 				break Loop
 			}
-			send := false
+			var st *Stanza
 			switch obj := x.(type) {
 			case *stream:
 				handleStream(obj)
@@ -250,24 +250,24 @@ Loop:
 				cl.handleTls(obj)
 			case *auth:
 				cl.handleSasl(obj)
+			case *Iq, *Message, *Presence:
+				st = getStanza(obj)
 			default:
-				send = true
+				Warn.Logf("Unhandled non-stanza: %T %#v", x, x)
 			}
-			if !send {
+
+			if st == nil {
 				continue
 			}
-			st, ok := x.(Stanza)
-			if !ok {
-				Warn.Logf("Unhandled non-stanza: %v", x)
-				continue
-			}
-			if handlers[st.GetId()] != nil {
-				f := handlers[st.GetId()]
-				delete(handlers, st.GetId())
-				send = f(st)
+
+			send := true
+			if handlers[st.Id] != nil {
+				f := handlers[st.Id]
+				delete(handlers, st.Id)
+				send = f(x)
 			}
 			if send {
-				cliOut <- st
+				cliOut <- x
 			}
 		}
 	}
@@ -277,11 +277,11 @@ Loop:
 // the app might inject something inappropriate into our negotiations
 // with the server. The control channel controls this loop's
 // activity.
-func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
+func writeStream(srvOut chan<- interface{}, cliIn <-chan interface{},
 control <-chan int) {
 	defer close(srvOut)
 
-	var input <-chan Stanza
+	var input <-chan interface{}
 Loop:
 	for {
 		select {
@@ -309,8 +309,8 @@ Loop:
 
 // Stanzas from the remote go up through a stack of filters to the
 // app. This function manages the filters.
-func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
-topFilter <-chan Stanza, app chan<- Stanza) {
+func filterTop(filterOut <-chan <-chan interface{}, filterIn chan<- <-chan interface{},
+topFilter <-chan interface{}, app chan<- interface{}) {
 	defer close(app)
 Loop:
 	for {
@@ -333,7 +333,7 @@ Loop:
 	}
 }
 
-func filterBottom(from <-chan Stanza, to chan<- Stanza) {
+func filterBottom(from <-chan interface{}, to chan<- interface{}) {
 	defer close(to)
 	for data := range from {
 		to <- data
@@ -596,8 +596,9 @@ func (cl *Client) bind(bindAdv *bindIq) {
 	if res != "" {
 		bindReq.Resource = &res
 	}
-	msg := &Iq{Type: "set", Id: <-Id, Nested: []interface{}{bindReq}}
-	f := func(st Stanza) bool {
+	msg := &Iq{Stanza: Stanza{Type: "set", Id: <-Id,
+		Nested: []interface{}{bindReq}}}
+	f := func(st interface{}) bool {
 		iq, ok := st.(*Iq)
 		if !ok {
 			Warn.Log("non-iq response")
@@ -614,7 +615,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 			}
 		}
 		if bindRepl == nil {
-			Warn.Logf("Bad bind reply: %v", iq)
+			Warn.Logf("Bad bind reply: %#v", iq)
 			return false
 		}
 		jidStr := bindRepl.Jid
@@ -642,7 +643,7 @@ func (cl *Client) bind(bindAdv *bindIq) {
 // available on the normal Client.In channel. The stanza handler
 // must not read from that channel, as deliveries on it cannot proceed
 // until the handler returns true or false.
-func (cl *Client) HandleStanza(id string, f func(Stanza) bool) {
+func (cl *Client) HandleStanza(id string, f func(interface{}) bool) {
 	h := &stanzaHandler{id: id, f: f}
 	cl.handlers <- h
 }

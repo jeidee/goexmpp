@@ -48,14 +48,14 @@ func newRosterQuery(name *xml.Name) interface{} {
 func fetchRoster(client *Client) error {
 	rosterUpdate := rosterClients[client.Uid].rosterUpdate
 
-	iq := &Iq{From: client.Jid.String(), Id: <-Id, Type: "get",
-		Nested: []interface{}{RosterQuery{}}}
+	iq := &Iq{Stanza: Stanza{From: client.Jid.String(), Type: "get",
+		Id: <-Id, Nested: []interface{}{RosterQuery{}}}}
 	ch := make(chan error)
-	f := func(st Stanza) bool {
+	f := func(v interface{}) bool {
 		defer close(ch)
-		iq, ok := st.(*Iq)
+		iq, ok := v.(*Iq)
 		if !ok {
-			ch <- fmt.Errorf("response to iq wasn't iq: %s", st)
+			ch <- fmt.Errorf("response to iq wasn't iq: %s", v)
 			return false
 		}
 		if iq.Type == "error" {
@@ -71,7 +71,7 @@ func fetchRoster(client *Client) error {
 		}
 		if rq == nil {
 			ch <- fmt.Errorf(
-				"Roster query result not query: %v", st)
+				"Roster query result not query: %v", v)
 			return false
 		}
 		for _, item := range rq.Item {
@@ -91,9 +91,9 @@ func fetchRoster(client *Client) error {
 // the roster feeder, which is the goroutine that provides data on
 // client.Roster.
 func startRosterFilter(client *Client) {
-	out := make(chan Stanza)
+	out := make(chan interface{})
 	in := client.AddFilter(out)
-	go func(in <-chan Stanza, out chan<- Stanza) {
+	go func(in <-chan interface{}, out chan<- interface{}) {
 		defer close(out)
 		for st := range in {
 			maybeUpdateRoster(client, st)
@@ -108,7 +108,7 @@ func startRosterFilter(client *Client) {
 	go feedRoster(rosterCh, rosterUpdate)
 }
 
-func maybeUpdateRoster(client *Client, st Stanza) {
+func maybeUpdateRoster(client *Client, st interface{}) {
 	iq, ok := st.(*Iq)
 	if !ok {
 		return
@@ -128,7 +128,8 @@ func maybeUpdateRoster(client *Client, st Stanza) {
 			rosterUpdate <- item
 		}
 		// Send a reply.
-		reply := &Iq{To: iq.From, Id: iq.Id, Type: "result"}
+		reply := &Iq{Stanza: Stanza{To: iq.From, Id: iq.Id,
+			Type: "result"}}
 		client.Out <- reply
 	}
 }
