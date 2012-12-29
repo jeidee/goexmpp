@@ -87,9 +87,13 @@ extStanza map[string]func(*xml.Name) interface{}) {
 	}
 	defer close(ch)
 
-	p := xml.NewDecoder(r)
-	p.Context.Map[""] = NsClient
-	p.Context.Map["stream"] = NsStream
+	// This trick loads our namespaces into the parser.
+	nsstr := fmt.Sprintf(`<a xmlns="%s" xmlns:stream="%s">`,
+		NsClient, NsStream)
+	nsrdr := strings.NewReader(nsstr)
+	p := xml.NewDecoder(io.MultiReader(nsrdr, r))
+	p.Token()
+
 Loop:
 	for {
 		// Sniff the next token on the stream.
@@ -206,8 +210,6 @@ func writeXml(w io.Writer, ch <-chan interface{}) {
 	}(w)
 
 	enc := xml.NewEncoder(w)
-	enc.Context.Map[NsClient] = ""
-	enc.Context.Map[NsStream] = "stream"
 
 	for obj := range ch {
 		if st, ok := obj.(*stream); ok {

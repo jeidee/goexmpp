@@ -81,14 +81,14 @@ func testWrite(obj interface{}) string {
 func TestWriteError(t *testing.T) {
 	se := &streamError{Any: Generic{XMLName: xml.Name{Local: "blah"}}}
 	str := testWrite(se)
-	exp := `<stream:error><blah></blah></stream:error>`
+	exp := `<error xmlns="` + NsStream + `"><blah></blah></error>`
 	assertEquals(t, exp, str)
 
 	se = &streamError{Any: Generic{XMLName: xml.Name{Space: NsStreams, Local: "foo"}}, Text: &errText{Lang: "ru", Text: "Пошёл ты"}}
 	str = testWrite(se)
-	exp = `<stream:error><foo xmlns="` + NsStreams +
+	exp = `<error xmlns="` + NsStream + `"><foo xmlns="` + NsStreams +
 		`"></foo><text xmlns="` + NsStreams +
-		`" xml:lang="ru">Пошёл ты</text></stream:error>`
+		`" xml:lang="ru">Пошёл ты</text></error>`
 	assertEquals(t, exp, str)
 }
 

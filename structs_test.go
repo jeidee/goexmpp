@@ -7,13 +7,20 @@ package xmpp
 import (
 	"bytes"
 	"encoding/xml"
+	"fmt"
+	"os"
+	"runtime"
 	"testing"
 )
 
 func assertEquals(t *testing.T, expected, observed string) {
 	if expected != observed {
-		t.Errorf("Expected:\n%s\nObserved:\n%s\n", expected,
-			observed)
+		file := "unknown"
+		line := 0
+		_, file, line, _ = runtime.Caller(1)
+		fmt.Fprintf(os.Stderr, "%s:%d: Expected:\n%s\nObserved:\n%s\n",
+			file, line, expected, observed)
+		t.Fail()
 	}
 }
 
@@ -45,14 +52,19 @@ func TestJid(t *testing.T) {
 func assertMarshal(t *testing.T, expected string, marshal interface{}) {
 	var buf bytes.Buffer
 	enc := xml.NewEncoder(&buf)
-	enc.Context.Map[NsClient] = ""
-	enc.Context.Map[NsStream] = "stream"
 	err := enc.Encode(marshal)
 	if err != nil {
 		t.Errorf("Marshal error for %s: %s", marshal, err)
 	}
 	observed := buf.String()
-	assertEquals(t, expected, observed)
+	if expected != observed {
+		file := "unknown"
+		line := 0
+		_, file, line, _ = runtime.Caller(1)
+		fmt.Fprintf(os.Stderr, "%s:%d: Expected:\n%s\nObserved:\n%s\n",
+			file, line, expected, observed)
+		t.Fail()
+	}
 }
 
 func TestStreamMarshal(t *testing.T) {
@@ -76,15 +88,15 @@ func TestStreamMarshal(t *testing.T) {
 func TestStreamErrorMarshal(t *testing.T) {
 	name := xml.Name{Space: NsStreams, Local: "ack"}
 	e := &streamError{Any: Generic{XMLName: name}}
-	exp := `<stream:error><ack xmlns="` + NsStreams +
-		`"></ack></stream:error>`
+	exp := `<error xmlns="` + NsStream + `"><ack xmlns="` + NsStreams +
+		`"></ack></error>`
 	assertMarshal(t, exp, e)
 
 	txt := errText{Lang: "pt", Text: "things happen"}
 	e = &streamError{Any: Generic{XMLName: name}, Text: &txt}
-	exp = `<stream:error><ack xmlns="` + NsStreams +
+	exp = `<error xmlns="` + NsStream + `"><ack xmlns="` + NsStreams +
 		`"></ack><text xmlns="` + NsStreams +
-		`" xml:lang="pt">things happen</text></stream:error>`
+		`" xml:lang="pt">things happen</text></error>`
 	assertMarshal(t, exp, e)
 }
 
