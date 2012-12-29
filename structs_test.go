@@ -9,7 +9,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -112,6 +114,30 @@ func TestIqMarshal(t *testing.T) {
 func TestMarshalEscaping(t *testing.T) {
 	msg := &Message{Body: &Generic{XMLName: xml.Name{Local: "body"},
 		Chardata: `&<!-- "`}}
-	exp := `<message><body>&amp;&lt;!-- &#34;</body></message>`
+	exp := `<message xmlns="jabber:client"><body>&amp;&lt;!-- &#34;</body></message>`
 	assertMarshal(t, exp, msg)
+}
+
+func TestUnmarshalMessage(t *testing.T) {
+	str := `<message to="a@b.c"><body>foo!</body></message>`
+	r := strings.NewReader(str)
+	ch := make(chan interface{})
+	go readXml(r, ch, make(map[string]func(*xml.Name) interface{}))
+	obs := <-ch
+	exp := &Message{XMLName: xml.Name{Local: "message", Space: "jabber:client"},
+		Header: Header{To:"a@b.c", Innerxml: "<body>foo!</body>"},
+		Body: &Generic{XMLName: xml.Name{Local: "body", Space: "jabber:client"},
+			Chardata: "foo!"}}
+	if !reflect.DeepEqual(obs, exp) {
+		t.Errorf("read %s\ngot:  %#v\nwant: %#v\n", str, obs, exp)
+	}
+	obsMsg, ok := obs.(*Message)
+	if !ok {
+		t.Fatalf("Not a Message: %T", obs)
+	}
+	obsBody := obsMsg.Body
+	expBody := exp.Body
+	if !reflect.DeepEqual(obsBody, expBody) {
+		t.Errorf("body\ngot:  %#v\nwant: %#v\n", obsBody, expBody)
+	}
 }

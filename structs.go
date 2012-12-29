@@ -96,11 +96,11 @@ type Header struct {
 
 // message stanza
 type Message struct {
-	XMLName  xml.Name `xml:"message"`
+	XMLName  xml.Name `xml:"jabber:client message"`
 	Header
-	Subject  *Generic `xml:"subject"`
-	Body     *Generic `xml:"body"`
-	Thread   *Generic `xml:"thread"`
+	Subject  *Generic `xml:"jabber:client subject"`
+	Body     *Generic `xml:"jabber:client body"`
+	Thread   *Generic `xml:"jabber:client thread"`
 }
 var _ Stanza = &Message{}
 
@@ -108,9 +108,9 @@ var _ Stanza = &Message{}
 type Presence struct {
 	XMLName  xml.Name `xml:"presence"`
 	Header
-	Show     *Generic `xml:"show"`
-	Status   *Generic `xml:"status"`
-	Priority *Generic `xml:"priority"`
+	Show     *Generic `xml:"jabber:client show"`
+	Status   *Generic `xml:"jabber:client status"`
+	Priority *Generic `xml:"jabber:client priority"`
 }
 var _ Stanza = &Presence{}
 
