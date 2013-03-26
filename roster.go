@@ -15,7 +15,7 @@ var rosterExt Extension = Extension{StanzaHandlers: map[string]func(*xml.Name) i
 
 // Roster query/result
 type RosterQuery struct {
-	XMLName xml.Name `xml:"jabber:iq:roster query"`
+	XMLName xml.Name     `xml:"jabber:iq:roster query"`
 	Item    []RosterItem `xml:"item"`
 }
 

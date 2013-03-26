@@ -10,8 +10,8 @@ var (
 	// If any of these are non-nil when NewClient() is called,
 	// they will be used to log messages of the indicated
 	// severity.
-	Warn Logger = &noLog{}
-	Info Logger = &noLog{}
+	Warn  Logger = &noLog{}
+	Info  Logger = &noLog{}
 	Debug Logger = &noLog{}
 )
 
@@ -27,6 +27,7 @@ type noLog struct {
 	flags  int
 	prefix string
 }
+
 var _ Logger = &noLog{}
 
 func (l *noLog) Log(v ...interface{}) {

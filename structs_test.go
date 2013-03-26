@@ -125,7 +125,7 @@ func TestUnmarshalMessage(t *testing.T) {
 	go readXml(r, ch, make(map[string]func(*xml.Name) interface{}))
 	obs := <-ch
 	exp := &Message{XMLName: xml.Name{Local: "message", Space: "jabber:client"},
-		Header: Header{To:"a@b.c", Innerxml: "<body>foo!</body>"},
+		Header: Header{To: "a@b.c", Innerxml: "<body>foo!</body>"},
 		Body: &Generic{XMLName: xml.Name{Local: "body", Space: "jabber:client"},
 			Chardata: "foo!"}}
 	if !reflect.DeepEqual(obs, exp) {

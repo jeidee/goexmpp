@@ -59,7 +59,7 @@ func main() {
 	}
 	roster := xmpp.Roster(c)
 	fmt.Printf("%d roster entries:\n", len(roster))
-	for i, entry := range(roster) {
+	for i, entry := range roster {
 		fmt.Printf("%d: %v\n", i, entry)
 	}
 
@@ -85,7 +85,7 @@ func main() {
 		}
 		var se *xml.StartElement
 		var ok bool
-		if se, ok = t.(*xml.StartElement) ; !ok {
+		if se, ok = t.(*xml.StartElement); !ok {
 			fmt.Println("Couldn't find start element")
 			break
 		}

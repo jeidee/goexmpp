@@ -79,8 +79,8 @@ func (cl *Client) writeTransport(r io.Reader) {
 }
 
 func readXml(r io.Reader, ch chan<- interface{},
-extStanza map[string]func(*xml.Name) interface{}) {
-	if _, ok := Debug.(*noLog) ; !ok {
+	extStanza map[string]func(*xml.Name) interface{}) {
+	if _, ok := Debug.(*noLog); !ok {
 		pr, pw := io.Pipe()
 		go tee(r, pw, "S: ")
 		r = pr
@@ -152,7 +152,7 @@ Loop:
 		// If it's a Stanza, we try to unmarshal its innerxml
 		// into objects of the appropriate respective
 		// types. This is specified by our extensions.
-		if st, ok := obj.(Stanza) ; ok {
+		if st, ok := obj.(Stanza); ok {
 			err = parseExtended(st.GetHeader(), extStanza)
 			if err != nil {
 				Warn.Logf("ext unmarshal: %s", err)
@@ -198,7 +198,7 @@ func parseExtended(st *Header, extStanza map[string]func(*xml.Name) interface{})
 }
 
 func writeXml(w io.Writer, ch <-chan interface{}) {
-	if _, ok := Debug.(*noLog) ; !ok {
+	if _, ok := Debug.(*noLog); !ok {
 		pr, pw := io.Pipe()
 		go tee(pr, w, "C: ")
 		w = pw
@@ -274,7 +274,7 @@ Loop:
 // with the server. The control channel controls this loop's
 // activity.
 func writeStream(srvOut chan<- interface{}, cliIn <-chan Stanza,
-control <-chan int) {
+	control <-chan int) {
 	defer close(srvOut)
 
 	var input <-chan Stanza
@@ -306,7 +306,7 @@ Loop:
 // Stanzas from the remote go up through a stack of filters to the
 // app. This function manages the filters.
 func filterTop(filterOut <-chan <-chan Stanza, filterIn chan<- <-chan Stanza,
-topFilter <-chan Stanza, app chan<- Stanza) {
+	topFilter <-chan Stanza, app chan<- Stanza) {
 	defer close(app)
 Loop:
 	for {
@@ -563,7 +563,7 @@ func packSasl(m map[string]string) string {
 
 // Computes the response string for digest authentication.
 func saslDigestResponse(username, realm, passwd, nonce, cnonceStr,
-authenticate, digestUri, nonceCountStr string) string {
+	authenticate, digestUri, nonceCountStr string) string {
 	h := func(text string) []byte {
 		h := md5.New()
 		h.Write([]byte(text))

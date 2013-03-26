@@ -188,7 +188,7 @@ func (cl *Client) startTransport() (io.Reader, io.WriteCloser) {
 }
 
 func startXmlReader(r io.Reader,
-extStanza map[string]func(*xml.Name) interface{}) <-chan interface{} {
+	extStanza map[string]func(*xml.Name) interface{}) <-chan interface{} {
 	ch := make(chan interface{})
 	go readXml(r, ch, extStanza)
 	return ch
@@ -269,8 +269,7 @@ func (cl *Client) bindDone() {
 func (cl *Client) StartSession(getRoster bool, pr *Presence) error {
 	id := <-Id
 	iq := &Iq{Header: Header{To: cl.Jid.Domain, Id: id, Type: "set",
-		Nested: []interface{}{Generic{XMLName:
-			xml.Name{Space: NsSession, Local: "session"}}}}}
+		Nested: []interface{}{Generic{XMLName: xml.Name{Space: NsSession, Local: "session"}}}}}
 	ch := make(chan error)
 	f := func(st Stanza) bool {
 		iq, ok := st.(*Iq)

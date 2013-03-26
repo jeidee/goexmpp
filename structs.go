@@ -38,19 +38,20 @@ type stream struct {
 	Lang    string   `xml:"http://www.w3.org/XML/1998/namespace lang,attr"`
 	Version string   `xml:"version,attr"`
 }
+
 var _ fmt.Stringer = &stream{}
 
 // <stream:error>
 type streamError struct {
 	XMLName xml.Name `xml:"http://etherx.jabber.org/streams error"`
-	Any  Generic     `xml:",any"`
-	Text *errText
+	Any     Generic  `xml:",any"`
+	Text    *errText
 }
 
 type errText struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:xmpp-streams text"`
 	Lang    string   `xml:"http://www.w3.org/XML/1998/namespace lang,attr"`
-	Text string      `xml:",chardata"`
+	Text    string   `xml:",chardata"`
 }
 
 type Features struct {
@@ -84,41 +85,44 @@ type Stanza interface {
 // One of the three core XMPP stanza types: iq, message, presence. See
 // RFC3920, section 9.
 type Header struct {
-	To       string   `xml:"to,attr,omitempty"`
-	From     string   `xml:"from,attr,omitempty"`
-	Id       string   `xml:"id,attr,omitempty"`
-	Type     string   `xml:"type,attr,omitempty"`
-	Lang     string   `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
-	Innerxml string   `xml:",innerxml"`
+	To       string `xml:"to,attr,omitempty"`
+	From     string `xml:"from,attr,omitempty"`
+	Id       string `xml:"id,attr,omitempty"`
+	Type     string `xml:"type,attr,omitempty"`
+	Lang     string `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
+	Innerxml string `xml:",innerxml"`
 	Error    *Error
 	Nested   []interface{}
 }
 
 // message stanza
 type Message struct {
-	XMLName  xml.Name `xml:"jabber:client message"`
+	XMLName xml.Name `xml:"jabber:client message"`
 	Header
-	Subject  *Generic `xml:"jabber:client subject"`
-	Body     *Generic `xml:"jabber:client body"`
-	Thread   *Generic `xml:"jabber:client thread"`
+	Subject *Generic `xml:"jabber:client subject"`
+	Body    *Generic `xml:"jabber:client body"`
+	Thread  *Generic `xml:"jabber:client thread"`
 }
+
 var _ Stanza = &Message{}
 
 // presence stanza
 type Presence struct {
-	XMLName  xml.Name `xml:"presence"`
+	XMLName xml.Name `xml:"presence"`
 	Header
 	Show     *Generic `xml:"jabber:client show"`
 	Status   *Generic `xml:"jabber:client status"`
 	Priority *Generic `xml:"jabber:client priority"`
 }
+
 var _ Stanza = &Presence{}
 
 // iq stanza
 type Iq struct {
-	XMLName  xml.Name `xml:"iq"`
+	XMLName xml.Name `xml:"iq"`
 	Header
 }
+
 var _ Stanza = &Iq{}
 
 // Describes an XMPP stanza error. See RFC 3920, Section 9.3.
@@ -129,6 +133,7 @@ type Error struct {
 	// Any nested element, if present.
 	Any *Generic
 }
+
 var _ error = &Error{}
 
 // Used for resource binding as a nested element inside <iq/>.
@@ -142,8 +147,9 @@ type bindIq struct {
 type Generic struct {
 	XMLName  xml.Name
 	Any      *Generic `xml:",any"`
-	Chardata string `xml:",chardata"`
+	Chardata string   `xml:",chardata"`
 }
+
 var _ fmt.Stringer = &Generic{}
 
 func (jid *JID) String() string {
