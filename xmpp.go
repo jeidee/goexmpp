@@ -103,10 +103,6 @@ type Client struct {
 // send operation to Client.Out will block until negotiation (resource
 // binding) is complete.
 func NewClient(jid *JID, password string, exts []Extension) (*Client, error) {
-	// Include the mandatory extensions.
-	exts = append(exts, rosterExt)
-	exts = append(exts, bindExt)
-
 	// Resolve the domain in the JID.
 	_, srvs, err := net.LookupSRV(clientSrv, "tcp", jid.Domain)
 	if err != nil {
@@ -133,6 +129,30 @@ func NewClient(jid *JID, password string, exts []Extension) (*Client, error) {
 	if tcp == nil {
 		return nil, err
 	}
+
+	return newClient(tcp, jid, password, exts)
+}
+
+// Connect to the specified host and port. This is otherwise identical
+// to NewClient.
+func NewClientFromHost(jid *JID, password string, exts []Extension, host string, port int) (*Client, error) {
+	addrStr := fmt.Sprintf("%s:%d", host, port)
+	addr, err := net.ResolveTCPAddr("tcp", addrStr)
+	if err != nil {
+		return nil, err
+	}
+	tcp, err := net.DialTCP("tcp", nil, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return newClient(tcp, jid, password, exts)
+}
+
+func newClient(tcp *net.TCPConn, jid *JID, password string, exts []Extension) (*Client, error) {
+	// Include the mandatory extensions.
+	exts = append(exts, rosterExt)
+	exts = append(exts, bindExt)
 
 	cl := new(Client)
 	cl.Uid = <-Id
